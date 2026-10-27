@@ -12,7 +12,8 @@
       "!.claude",
       "!.codex",
       "!.opencode",
-      "!docs"
+      "!docs",
+      "!**/*.md"
     ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },

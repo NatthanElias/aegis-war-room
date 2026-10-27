@@ -30,7 +30,7 @@ Repositories: single.
 ## Checks
 
 <!-- setup:checks -->
-- warroom: No command established; validation gap
+- warroom: `npm run test; npm run typecheck; npm run lint; npm run smoke`
 <!-- /setup:checks -->
 
 ## Team rules

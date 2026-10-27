@@ -109,7 +109,7 @@ All `models.classify()` calls check `result.stopReason === "stop"` before readin
 
 ## Seeded roles and Chord WebSocket permissions
 
-Clients connect via `@earendil-works/chord/websocket` `acceptWebSockets(wss, host, { principal })`. Switching users in the top bar reconnects the WebSocket under the selected seeded user. `makerId` and `checkerId` always resolve from the authenticated Chord principal, never from client request bodies, backed by explicit server-side role assertions:
+Clients connect via `acceptWebSockets(wss, host, { principal })`, which `@earendil-works/chord` exports from its package root, over a `ws` `WebSocketServer` that serves the `/chord` upgrade path. The server resolves the principal from the `user` query parameter (`alice`, `bob`, or `carol`) and refuses any other value by closing the socket before any state is sent. Switching users in the top bar reconnects the WebSocket under the selected seeded user. `makerId` and `checkerId` always resolve from the authenticated Chord principal, never from client request bodies, backed by explicit server-side role assertions:
 
 | Action | `alice` (`IC`) | `bob` (`Responder`) | `carol` (`Observer`) |
 | :--- | :---: | :---: | :---: |

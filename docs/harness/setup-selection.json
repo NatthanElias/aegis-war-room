@@ -10,10 +10,10 @@
     {"task": "Look up protocol or Jev background", "start": "docs/research/"}
   ],
   "skills": ["workflow-setup", "generate-roadmap", "feature-workflow"],
-  "checks": {},
+  "checks": {"warroom": "npm run test; npm run typecheck; npm run lint; npm run smoke"},
   "feature_root": ".specs/features/<feature>/",
   "delegation": "Helpers allowed; parallel writes allowed on disjoint files",
   "commits": "Local commits under an approved plan; push, force-push, deploy, and production data need explicit approval",
   "documents": {"Architecture decisions": "docs/architecture.md", "Architecture reference": "docs/architecture-reference.md"},
-  "deferred": ["team standards", "check command"]
+  "deferred": ["team standards"]
 }
