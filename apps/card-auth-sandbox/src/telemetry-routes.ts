@@ -29,6 +29,12 @@ function parseInteger(raw: string): number | undefined {
  */
 function parseInstant(raw: string | null): number | undefined {
   if (raw === null || !ISO_8601.test(raw)) return undefined;
+  // Why: Date.parse normalizes dates such as February 30 instead of refusing them.
+  const calendarDate = raw.slice(0, 10);
+  const midnight = new Date(`${calendarDate}T00:00:00Z`);
+  if (Number.isNaN(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== calendarDate) {
+    return undefined;
+  }
   const ms = Date.parse(raw);
   return Number.isNaN(ms) ? undefined : ms;
 }

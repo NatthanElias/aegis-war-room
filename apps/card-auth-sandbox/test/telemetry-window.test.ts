@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { createTelemetry, MAX_ENTRIES, WINDOW_MS } from "../src/telemetry.ts";
+import { createTelemetry } from "../src/telemetry.ts";
 import { reportAcquirers } from "../src/telemetry-report.ts";
 
 const fields = (traceId: string, acquirer: "acquirer-alpha" | "acquirer-beta" = "acquirer-alpha") =>
@@ -18,24 +18,24 @@ describe("telemetry window", () => {
     const telemetry = createTelemetry(() => now);
 
     telemetry.begin(fields("old"));
-    now += WINDOW_MS - 1;
+    now += 300_000 - 1;
     telemetry.begin(fields("edge"));
     expect(telemetry.entries().map((entry) => entry.traceId)).toEqual(["old", "edge"]);
     now += 2;
     expect(telemetry.entries().map((entry) => entry.traceId)).toEqual(["edge"]);
 
-    for (let i = 0; i < MAX_ENTRIES + 5; i++) telemetry.begin(fields(`n${i}`));
+    for (let i = 0; i < 10_005; i++) telemetry.begin(fields(`n${i}`));
     const kept = telemetry.entries();
     expect(kept).toHaveLength(10_000);
     expect(kept[0]?.traceId).toBe("n5");
-    expect(kept[kept.length - 1]?.traceId).toBe(`n${MAX_ENTRIES + 4}`);
+    expect(kept[kept.length - 1]?.traceId).toBe("n10004");
   });
 
   test("an entry that left the window still counts as in flight until it finishes", () => {
     let now = 0;
     const telemetry = createTelemetry(() => now);
     const entry = telemetry.begin(fields("slow"));
-    now += WINDOW_MS + 1;
+    now += 300_001;
 
     expect(telemetry.entries()).toHaveLength(0);
     expect(telemetry.inFlight).toBe(1);

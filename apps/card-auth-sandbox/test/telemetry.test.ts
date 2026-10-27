@@ -5,6 +5,8 @@ import {
 } from "@warroom/contracts";
 import Value from "typebox/value";
 import { afterEach, describe, expect, test } from "vitest";
+import { createTelemetry } from "../src/telemetry.ts";
+import { answerTelemetry } from "../src/telemetry-routes.ts";
 import { createHarness, getJson, sleep, waitFor } from "./support.ts";
 
 const harness = createHarness();
@@ -133,6 +135,43 @@ describe("telemetry", () => {
     const betaList = (beta.body as SandboxAuthorizationList).authorizations;
     expect(betaList.map((entry) => entry.traceId)).toEqual([traceIds[3], traceIds[1]]);
     expect(betaList.every((entry) => entry.acquirer === "acquirer-beta")).toBe(true);
+
+    // Why: five HTTP records cannot distinguish the default 100 from a larger limit or exercise range edges.
+    const base = Date.parse("2026-10-27T12:00:00Z");
+    let now = base - 1;
+    const history = createTelemetry(() => now);
+    for (let offset = -1; offset <= 105; offset++) {
+      now = base + offset;
+      const entry = history.begin({
+        traceId: `entry-${offset}`,
+        brand: "visa",
+        acquirer: "acquirer-alpha",
+        bin: "411111",
+        last4: "1111",
+        amountCents: 1000,
+      });
+      history.finish(entry, "APPROVED");
+    }
+    const historicalRange = new URLSearchParams({
+      since: new Date(base).toISOString(),
+      until: new Date(base + 104).toISOString(),
+    });
+    const readHistory = (extra: string) => {
+      const response = answerTelemetry(
+        new URL(`http://sandbox.invalid/telemetry/authorizations?${historicalRange}${extra}`),
+        history,
+        sandbox.pool,
+      );
+      if (!response) throw new Error("telemetry route did not answer");
+      expect(response.status).toBe(200);
+      return (response.body as SandboxAuthorizationList).authorizations.map(
+        (entry) => entry.traceId,
+      );
+    };
+    expect(readHistory("")).toEqual(Array.from({ length: 100 }, (_, i) => `entry-${104 - i}`));
+    expect(readHistory("&limit=500")).toEqual(
+      Array.from({ length: 105 }, (_, i) => `entry-${104 - i}`),
+    );
   });
 
   test("rejects an invalid range", async () => {
@@ -147,8 +186,12 @@ describe("telemetry", () => {
       `since=yesterday&until=${until}`,
       `since=${until}&until=${since}`,
       `since=${since}&until=${iso(3601)}`,
+      ...["2026-02-30", "2026-02-29", "2026-04-31"].flatMap((date) => [
+        `since=${date}T12:00:00Z&until=${date}T13:00:00Z`,
+        `since=${date}&until=${date}`,
+      ]),
     ];
-    expect(invalidRange).toHaveLength(5);
+    expect(invalidRange).toHaveLength(11);
 
     for (const query of invalidRange) {
       const response = await getJson(sandbox, `/telemetry/authorizations?${query}`);
@@ -161,6 +204,11 @@ describe("telemetry", () => {
       `/telemetry/authorizations?since=${since}&until=${iso(3600)}`,
     );
     expect(edge.status).toBe(200);
+    const leapDay = await getJson(
+      sandbox,
+      "/telemetry/authorizations?since=2024-02-29T23:00:00%2B01:00&until=2024-02-29T23:30:00%2B01:00",
+    );
+    expect(leapDay.status).toBe(200);
     const range = `since=${since}&until=${until}`;
     const gamma = await getJson(
       sandbox,
