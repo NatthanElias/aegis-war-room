@@ -3,7 +3,8 @@
 // SMOKE_SANDBOX_WAIT_MS (default 10000).
 import { connectShell, type ShellState } from "@warroom/contracts";
 
-const warroomUrl = process.env.SMOKE_WARROOM_URL ?? "http://127.0.0.1:8080";
+const warroomUrl =
+  process.env.SMOKE_WARROOM_URL ?? `http://127.0.0.1:${process.env.WARROOM_PORT ?? 8080}`;
 const sandboxUrl = process.env.SMOKE_SANDBOX_URL;
 const sandboxWaitMs = Number(process.env.SMOKE_SANDBOX_WAIT_MS ?? 10_000);
 
@@ -76,7 +77,7 @@ const probes: Array<[string, () => Promise<void>]> = [
   ],
   ["warroom-server /chord", openShell],
   [
-    "card-auth-sandbox /healthz",
+    sandboxUrl ? "card-auth-sandbox /healthz" : "card-auth-sandbox /healthz (via warroom-server)",
     () => (sandboxUrl ? expectHealthy(sandboxUrl) : sandboxViaShell()),
   ],
 ];

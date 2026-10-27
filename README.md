@@ -10,6 +10,8 @@ npm run smoke                      # probes the running stack; runs no Docker co
 docker compose down
 ```
 
+Smoke reads sandbox health through warroom-server because the sandbox has no published port. Set `SMOKE_SANDBOX_URL` to probe it directly; smoke also respects `WARROOM_PORT`.
+
 Open `http://localhost:8080/?user=alice` (or `bob`, `carol`). Change the host port with `WARROOM_PORT`.
 
 ## Develop

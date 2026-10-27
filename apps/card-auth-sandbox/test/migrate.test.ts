@@ -9,6 +9,7 @@ import { runNode } from "../../../test-support/process.ts";
 import { startProxy } from "../../../test-support/proxy.ts";
 import {
   DEFAULT_MIGRATE_TIMEOUT_MS,
+  MigrationFailed,
   resolveMigrateTimeoutMs,
   runMigrations,
 } from "../src/migrations.ts";
@@ -119,6 +120,24 @@ describe("migrate", () => {
       "SELECT table_name FROM information_schema.tables WHERE table_name IN ('good','half_done','never_run')",
     );
     expect(tables.rows.map((row) => row.table_name)).toEqual(["good"]);
+  });
+
+  test("applies pending files atomically with their ledger row", async () => {
+    const db = await newDatabase();
+    const client = await newClient(db.url);
+    const roles = await readFile(join(migrationsDir, "0001_roles.sql"), "utf8");
+    const dir = await tempMigrations({
+      "0001_roles.sql": roles,
+      "0002_self_record.sql":
+        "CREATE TABLE half_recorded (id int); INSERT INTO sandbox_migrations (name) VALUES ('0002_self_record.sql');",
+    });
+
+    const failure = await runMigrations(client, dir).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(MigrationFailed);
+    expect(failure).toMatchObject({ file: "0002_self_record.sql", applied: ["0001_roles.sql"] });
+    expect(await ledger(client)).toEqual(["0001_roles.sql"]);
+    const table = await client.query("SELECT to_regclass('public.half_recorded') AS name");
+    expect(table.rows[0].name).toBeNull();
   });
 
   test("roles exist after migrate and warroom_diag reads all stats", async () => {

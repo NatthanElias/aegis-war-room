@@ -64,14 +64,14 @@ describe("smoke", () => {
     });
     cleanups.push(() => server.close());
     const env = {
-      SMOKE_WARROOM_URL: `http://127.0.0.1:${server.port}`,
+      WARROOM_PORT: String(server.port),
       SMOKE_SANDBOX_WAIT_MS: "1500",
     };
 
     const healthy = await runNode(smokeScript, env);
     expect(healthy.stderr).toBe("");
     expect(healthy.code).toBe(0);
-    expect(healthy.stdout).toContain("ok card-auth-sandbox /healthz");
+    expect(healthy.stdout).toContain("ok card-auth-sandbox /healthz (via warroom-server)");
 
     sandbox.setStatus(503);
     await new Promise((resolve) => setTimeout(resolve, 600));
