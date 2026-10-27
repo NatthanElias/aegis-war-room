@@ -1,0 +1,5 @@
+interface:
+  display_name: "Workflow setup"
+  short_description: "Interview the team and write AGENTS.md"
+policy:
+  allow_implicit_invocation: false

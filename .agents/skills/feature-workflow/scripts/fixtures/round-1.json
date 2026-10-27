@@ -1,0 +1,281 @@
+{
+  "feature_id": "billing-dunning",
+  "project": "acme",
+  "repository": "billing",
+  "scope": "billing-webhooks",
+  "round": 1,
+  "kind": "behavior",
+  "ui": "no",
+  "review_files": [
+    ".specs/features/billing-dunning/plan.md",
+    ".specs/features/billing-dunning/checks.md",
+    "billing:app/models/access/policy.rb",
+    "billing:app/models/billing/status_map.rb",
+    "billing:app/models/billing/subscription.rb",
+    "billing:app/webhooks/ingest.rb",
+    "billing:test/billing/access_test.rb",
+    "billing:test/billing/dunning_test.rb",
+    "billing:test/billing/status_map_test.rb",
+    "billing:test/billing/transitions_test.rb",
+    "billing:test/webhooks/dispatch_test.rb",
+    "billing:test/webhooks/ingest_test.rb"
+  ],
+  "review_tokens": 62582,
+  "review_type": "independent",
+  "author": "builder:session-1",
+  "reviewer": "spec_verifier:session-2",
+  "verdict": "PASS",
+  "plan_sha256": "<sha256 of plan.md>",
+  "checks_sha256": "<sha256 of checks.md>",
+  "repositories": [
+    {
+      "repo_id": "billing",
+      "checkout_id": "main",
+      "head": "<full HEAD sha>",
+      "fingerprint": "<fingerprint>"
+    }
+  ],
+  "checkpoints": [
+    {
+      "id": "C1",
+      "source": "plan.md#Criteria-1",
+      "expected": "A failed charge sets status to `Suspended`, never `Cancelled`",
+      "implementation": "billing:app/models/billing/subscription.rb:41 fail_charge!",
+      "assertion": "billing:test/billing/dunning_test.rb:14 assert_equal \"suspended\", sub.status",
+      "observed": "status is suspended",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/dunning_test.rb -n \"/failed_charge_suspends/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C2",
+      "source": "plan.md#Criteria-1",
+      "expected": "Every provider status maps to exactly one local status",
+      "implementation": "billing:app/models/billing/status_map.rb:12 MAP",
+      "assertion": "billing:test/billing/status_map_test.rb:9 assert_equal expected, StatusMap.call(status)",
+      "observed": "9 of 9 provider statuses map once",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/status_map_test.rb -n \"/every_provider_status/\"",
+          "exit_code": 0,
+          "tests_run": 9,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C3",
+      "source": "plan.md#Criteria-2",
+      "expected": "An unknown provider status leaves the status unchanged and records `billing.status_unmapped`",
+      "implementation": "billing:app/models/billing/status_map.rb:27 unmapped",
+      "assertion": "billing:test/billing/status_map_test.rb:31 assert_event \"billing.status_unmapped\"",
+      "observed": "status unchanged, event recorded",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/status_map_test.rb -n \"/unknown_status_is_recorded/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C4",
+      "source": "plan.md#Criteria-3",
+      "expected": "A `Suspended` subscription denies access to paid access groups",
+      "implementation": "billing:app/models/access/policy.rb:18 grant?",
+      "assertion": "billing:test/billing/access_test.rb:22 refute policy.grant?(paid_group)",
+      "observed": "paid group denied",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/access_test.rb -n \"/suspended_denies_paid_groups/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C5",
+      "source": "plan.md#Criteria-4",
+      "expected": "`Suspended` cannot transition directly to `Trialing`",
+      "implementation": "billing:app/models/billing/subscription.rb:58 transition_to",
+      "assertion": "billing:test/billing/transitions_test.rb:12 assert_raises(InvalidTransition)",
+      "observed": "transition rejected",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/transitions_test.rb -n \"/suspended_to_trialing_is_rejected/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C6",
+      "source": "plan.md#Criteria-1",
+      "expected": "A `Suspended` subscription returns to `Active` on a successful charge",
+      "implementation": "billing:app/models/billing/subscription.rb:58 transition_to",
+      "assertion": "billing:test/billing/transitions_test.rb:27 assert_equal \"active\", sub.status",
+      "observed": "status is active",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/transitions_test.rb -n \"/suspended_to_active/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C7",
+      "source": "plan.md#Criteria-1",
+      "expected": "Two concurrent failed-charge deliveries produce one suspension and the second returns `409`",
+      "implementation": "billing:app/webhooks/ingest.rb:31 find_or_create_delivery",
+      "assertion": "billing:test/webhooks/ingest_test.rb:44 assert_equal 409, second.status",
+      "observed": "one suspension, second response 409",
+      "proofs": [
+        {
+          "command": "bin/rails test test/webhooks/ingest_test.rb -n \"/concurrent_delivery_conflicts/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C8",
+      "source": "plan.md#Criteria-5",
+      "expected": "Retrying the same delivery id returns `200` and changes no records",
+      "implementation": "billing:app/webhooks/ingest.rb:31 find_or_create_delivery",
+      "assertion": "billing:test/webhooks/ingest_test.rb:18 assert_equal 1, WebhookDelivery.count",
+      "observed": "200 and one row",
+      "proofs": [
+        {
+          "command": "bin/rails test test/webhooks/ingest_test.rb -n \"/retry_is_idempotent/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C9",
+      "source": "plan.md#Criteria-6",
+      "expected": "A payload missing a subscription id returns `422` and persists nothing",
+      "implementation": "billing:app/webhooks/ingest.rb:22 require_subscription_id",
+      "assertion": "billing:test/webhooks/ingest_test.rb:61 assert_equal 422, response.status",
+      "observed": "422 and no rows",
+      "proofs": [
+        {
+          "command": "bin/rails test test/webhooks/ingest_test.rb -n \"/missing_subscription_id_is_422/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C10",
+      "source": "plan.md#Criteria-5",
+      "expected": "Each of the 5 provider event types dispatches to its own handler",
+      "implementation": "billing:app/webhooks/ingest.rb:48 HANDLERS",
+      "assertion": "billing:test/webhooks/dispatch_test.rb:8 assert_dispatched event_type",
+      "observed": "5 of 5 event types dispatched",
+      "proofs": [
+        {
+          "command": "bin/rails test test/webhooks/dispatch_test.rb -n \"/dispatches_every_event_type/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    },
+    {
+      "id": "C11",
+      "source": "plan.md#Criteria-1",
+      "expected": "The provider timing out does not change local state",
+      "implementation": "billing:app/models/billing/subscription.rb:41 fail_charge!",
+      "assertion": "billing:test/billing/dunning_test.rb:40 assert_no_changes -> { sub.reload.status }",
+      "observed": "status unchanged on timeout",
+      "proofs": [
+        {
+          "command": "bin/rails test test/billing/dunning_test.rb -n \"/provider_timeout_is_inert/\"",
+          "exit_code": 0,
+          "tests_run": 1,
+          "tests_failed": 0,
+          "tests_skipped": 0
+        }
+      ],
+      "verdict": "PASS"
+    }
+  ],
+  "gates": [
+    {
+      "command": "bin/rails test",
+      "cwd": "billing",
+      "exit_code": 0,
+      "tests_run": 412,
+      "tests_failed": 0,
+      "tests_skipped": 0,
+      "test_required": true
+    }
+  ],
+  "test_policy": {
+    "tautology_check": {
+      "verdict": "PASS",
+      "evidence": "Applied all eleven patterns to the eleven named proofs, dunning_test.rb:14 through ingest_test.rb:61; each pins an independent status, event, count, or error."
+    },
+    "dropped_tests": []
+  },
+  "mutations": [
+    {
+      "id": "M1",
+      "location": "billing:app/models/billing/status_map.rb:12",
+      "change": "map charge_failed to cancelled",
+      "tests": "status_map_test every_provider_status",
+      "detected": true
+    },
+    {
+      "id": "M2",
+      "location": "billing:app/webhooks/ingest.rb:31",
+      "change": "skip the delivery dedup lookup",
+      "tests": "ingest_test retry_is_idempotent",
+      "detected": true
+    },
+    {
+      "id": "M3",
+      "location": "billing:app/models/billing/subscription.rb:58",
+      "change": "allow suspended to trialing",
+      "tests": "transitions_test suspended_to_trialing_is_rejected",
+      "detected": true
+    }
+  ],
+  "porcelain_unchanged": true,
+  "signals": []
+}

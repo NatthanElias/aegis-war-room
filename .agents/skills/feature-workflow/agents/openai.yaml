@@ -1,0 +1,3 @@
+interface:
+  display_name: "Feature workflow"
+  short_description: "Plan, build, and verify an accepted feature"

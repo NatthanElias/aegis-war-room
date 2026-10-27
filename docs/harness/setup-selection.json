@@ -1,0 +1,19 @@
+{
+  "project": "warroom",
+  "single_repository": true,
+  "selected_repositories": ["warroom"],
+  "brief": "Proof-of-concept AI-native incident war room for a credit-card payment pipeline (AI-Native SDLC Stage 6: Maintain).\nwarroom-server runs pi-durable agents and serves multiplayer state over Chord WebSockets; card-auth-sandbox simulates card authorization over PostgreSQL 17 with reproducible chaos faults.\nAgents investigate with receipt-backed evidence and hold no mutating tools; every remediation needs Two-Key Break-Glass approval.\nMaster's final practical project, defended live on 2026-12-03; one-command startup via docker compose.",
+  "repositories": {"warroom": {"role": "War room PoC: warroom-server, card-auth-sandbox, and PostgreSQL", "start": "docs/"}},
+  "routes": [
+    {"task": "Change design rationale", "start": "docs/architecture.md"},
+    {"task": "Change schemas, pools, roles, or tool contracts", "start": "docs/architecture-reference.md"},
+    {"task": "Look up protocol or Jev background", "start": "docs/research/"}
+  ],
+  "skills": ["workflow-setup", "generate-roadmap", "feature-workflow"],
+  "checks": {},
+  "feature_root": ".specs/features/<feature>/",
+  "delegation": "Helpers allowed; parallel writes allowed on disjoint files",
+  "commits": "Local commits under an approved plan; push, force-push, deploy, and production data need explicit approval",
+  "documents": {"Architecture decisions": "docs/architecture.md", "Architecture reference": "docs/architecture-reference.md"},
+  "deferred": ["team standards", "check command"]
+}

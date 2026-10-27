@@ -1,0 +1,17 @@
+{
+  "entry": "AGENTS.md",
+  "entry_hash": "a00f7855d320ef9279518d4e129d99c9c443f011e01b731958f9abad5c23d365",
+  "entry_parts": {
+    "brief": "22f137e4b64e5372fcc4b3e6387d1beb6d48e2be77c611c85f1bcb523cd8b300",
+    "repositories": "2e91edcf5730adaab96a6415a86b22ff4b07ff21a96c124254dc3ac342610dc8",
+    "routes": "159e5f002a44b79f28e84f26a20d64ae12243ca1303154e1a1fbcd5a918e025a",
+    "checks": "3e397cb6b11d53f216544524f9ce6129bbcd6d673b024a51f2577ae09850d321",
+    "team": "ef40e6bb8e82be00bb20cb892488f3bbc654d4dfd2792a554efdb3d1de04660d"
+  },
+  "selection_hash": "71b6633caf76673e000b7306f7c719b8c33ac95dc7096ea21fe4c2844e91a4c4",
+  "skills": [
+    "workflow-setup",
+    "generate-roadmap",
+    "feature-workflow"
+  ]
+}
