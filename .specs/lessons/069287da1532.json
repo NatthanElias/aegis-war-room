@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:16:02.625218+00:00",
+  "id": "069287da1532",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Pin accepted retention durations independently of the production constants that implement them."
+}

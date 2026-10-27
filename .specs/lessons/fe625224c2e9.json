@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:16:02.453769+00:00",
+  "id": "fe625224c2e9",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "sandbox-telemetry",
+  "status": "candidate",
+  "text": "Reject invalid calendar components before allowing a permissive timestamp parser to normalize them."
+}

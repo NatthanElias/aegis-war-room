@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:16:02.737259+00:00",
+  "id": "614f9b56c99e",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Separate queued database work from acquirer wait phases when investigating end-to-end in-flight timing failures."
+}

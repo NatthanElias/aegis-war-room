@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:16:02.569476+00:00",
+  "id": "d1788cd49cef",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Seed more records than a default limit so a wrong default changes an asserted response cardinality."
+}

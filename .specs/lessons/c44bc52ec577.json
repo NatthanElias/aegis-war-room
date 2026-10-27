@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:16:02.680936+00:00",
+  "id": "c44bc52ec577",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Diagnose observed timing failures with phase evidence instead of treating later green runs as an explanation."
+}
