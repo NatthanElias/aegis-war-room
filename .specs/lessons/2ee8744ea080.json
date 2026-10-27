@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:44:52.257902+00:00",
+  "id": "2ee8744ea080",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Include parser-accepted malformed timestamps that pass calendar validation when proving strict timestamp format rejection."
+}

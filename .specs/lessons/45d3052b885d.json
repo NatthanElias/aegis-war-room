@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T19:44:52.316010+00:00",
+  "id": "45d3052b885d",
+  "observations": [
+    {
+      "feature": "card-auth-sandbox",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "testing",
+  "status": "candidate",
+  "text": "Recheck retained-test fault evidence when a new validation guard can mask the examples used by an older proof."
+}
