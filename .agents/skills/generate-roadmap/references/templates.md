@@ -79,7 +79,7 @@ The schedule rests on these assumptions:
 
 | Priority | Feature | Slug | Size | Stories | Front |
 | --- | --- | --- | --- | --- | --- |
-| Must | <feature> | `<slug>` | S, M, or L | US-01 | <front> |
+| Must | <feature> | `<slug>` | S, M, or L | US-01 or EN-01 | <front> |
 | Won't | <feature> | `<slug>` | - | - | - |
 
 Cut order, first to go: <slug>, <slug>.
@@ -105,7 +105,7 @@ Leave out the milestone 0 row when the phase has no milestone 0.
 - Provides: <contracts>, or `None`.
 - Uses: <contracts>, or `None`.
 - Depends on: <contract or milestone>, or `None`.
-- Stories: <US-01, US-02>.
+- Stories: <US-01, US-02, EN-01>.
 - Status: <on track, at risk, or blocked by what>.
 
 ## Shared files
@@ -140,9 +140,9 @@ Decisions that cross fronts live in <link to DECISIONS.md>.
 - The Schedule section sits between Constraints and Scope in ROADMAP.md. No other file holds the chart.
 - Write one `:milestone, m<n>, <date>, 0d` line per row of the Milestones table.
 - Write one section per front, named `<front>, <owners>`. Milestone 0 gets its own section, under the developer who builds it. When the phase has no milestone 0, leave out its milestone line and section.
-- Label each task with the feature slug and its story ID, such as `checkout-flow US-02`, and append `, Could` to a Could item. A task label never contains `:`, because Mermaid reads the first colon as the start of the task metadata.
+- Label each task with the feature slug and its story or enabler ID, such as `checkout-flow US-02` or `e2e-suite EN-01`, and append `, Could` to a Could item. A task label never contains `:`, because Mermaid reads the first colon as the start of the task metadata.
 - A derived task is work a milestone needs that no slug covers, such as a second batch. Give it a plain label, and name its source in the assumptions.
-- Chain tasks with `after`. The first tasks after milestone 0 use `after skel`. With no milestone 0, they start on the kickoff date. `after a b` starts after the later of `a` and `b`. Take the order from the front dependencies, the contracts, and the milestone outcomes, because STORIES.md records no dependencies.
+- Chain tasks with `after`. The first tasks after milestone 0 use `after skel`. With no milestone 0, they start on the kickoff date. `after a b` starts after the later of `a` and `b`. Take the order from the front dependencies, the contracts, and the milestone outcomes, because STORIES.md records only which stories each enabler enables.
 - Tag every task on the Must chain to the demo with `crit`, which renders it orange.
 - Put Could items in a developer's waiting gaps, so a Could never delays a Must.
 - At a checkpoint, tag finished tasks `done` and running tasks `active`.
@@ -157,18 +157,20 @@ Decisions that cross fronts live in <link to DECISIONS.md>.
 
 ## STORIES.md
 
-Order stories by ID. A cut story keeps its ID and changes its priority to Won't.
+Order user stories by ID, then enablers by ID. A cut story or enabler keeps its ID and changes its priority to Won't. Leave out the Enablers section when the roadmap has none.
 
 ````markdown
-# <Project> user stories
+# <Project> stories
 
 Roadmap: <link to ROADMAP.md>.
 
-## US-01 <short title>
+## User stories
+
+### US-01 <short title>
 
 Front: <front>. Priority: <Must or Should>. Feature: `<slug>`.
 
-As a <role>, I want <action>, so that <benefit>.
+As a <person who uses the product or is affected by it>, I want <action>, so that <benefit to that person>.
 
 ```gherkin
 Scenario: <happy path>
@@ -181,11 +183,26 @@ Scenario: <main failure>
   When <action>
   Then <observable result>
 ```
+
+## Enablers
+
+### EN-01 <short title>
+
+Front: <front>. Priority: <Must or Should>. Feature: `<slug>`. Enables: <US-02, US-03>.
+
+<What the team gets>, so that <how it lets the enabled stories ship or keeps them working>.
+
+```gherkin
+Scenario: <happy path>
+  Given <starting state>
+  When <action>
+  Then <observable result>
+```
 ````
 
 ## DECISIONS.md
 
-Translate the headings, the legend meanings, the formula's connecting words, and the `replaces` and `replaced by` pointers into the confirmed output language. Keep the IDs and the tags in English.
+Translate the headings, the legend meanings, the formula's capitalized connecting words, and the `replaces` and `replaced by` pointers into the confirmed output language. Keep the IDs and the tags in English.
 
 ````markdown
 # <Project> decisions
@@ -205,8 +222,8 @@ Roadmap: <link to ROADMAP.md>. Each line records one decision that changes somet
 
 <Occasion, such as the kickoff meeting or the checkpoint>, agreed by <names>:
 
-- D-01 🟢 **[CHOICE]** In the context of *<challenge>*, we chose *<solution>* to achieve *<benefit>*, accepting *<trade-off>*.
-- D-03 🟡 **[CHANGED]** In the context of *<challenge>*, we chose *<solution>* to achieve *<benefit>* (replaces D-02).
+- D-01 🟢 **[CHOICE]** IN THE CONTEXT OF *<challenge>*, WE CHOSE *<solution>* TO ACHIEVE *<benefit>*, ACCEPTING *<trade-off>*.
+- D-03 🟡 **[CHANGED]** IN THE CONTEXT OF *<challenge>*, WE CHOSE *<solution>* TO ACHIEVE *<benefit>* (replaces D-02).
 
 ## Replaced
 
@@ -214,19 +231,19 @@ Roadmap: <link to ROADMAP.md>. Each line records one decision that changes somet
 
 <Occasion>, agreed by <names>:
 
-- D-02 🔵 **[REQUIRED]** In the context of *<challenge>*, we chose *<solution>* to achieve *<benefit>*, accepting *<trade-off>* (replaced by D-03).
+- D-02 🔵 **[REQUIRED]** IN THE CONTEXT OF *<challenge>*, WE CHOSE *<solution>* TO ACHIEVE *<benefit>*, ACCEPTING *<trade-off>* (replaced by D-03).
 ````
 
 ### Decision log rules
 
 - Log a decision only when it changes something the roadmap records: the output language, the goal or demo story, the deadline or a milestone date, the team or a front's owner, the scope or cut line, or a contract between fronts. Log a technical constraint only when the team agreed it in a roadmap session or checkpoint. A choice one developer makes inside a feature, such as a story's failure behavior or a library choice, goes in that feature's plan, and in a `.specs/constraints/` record when it reaches past the feature. `DECISIONS.md` is for people; coding agents follow the records under `.specs/constraints/`.
-- Write each decision as one line of one sentence: `- D-<NN> <emoji> **[<TAG>]** In the context of *<challenge>*, we chose *<solution>* to achieve *<benefit>*, accepting *<trade-off>*.` End the sentence after the benefit when the decision has no real trade-off.
+- Write each decision as one line of one sentence: `- D-<NN> <emoji> **[<TAG>]** IN THE CONTEXT OF *<challenge>*, WE CHOSE *<solution>* TO ACHIEVE *<benefit>*, ACCEPTING *<trade-off>*.` End the sentence after the benefit when the decision has no real trade-off.
 - Pick the one tag from the legend that fits. Write tags uppercase and in English in every project, so a `grep` for the tag finds them.
-- Write the connecting words and the slot text in the confirmed output language. In Portuguese the formula reads: `No contexto de *<desafio>*, escolhemos *<solução>* para obter *<benefício>*, aceitando *<trade-off>*.`
+- Write the connecting words and the slot text in the confirmed output language. Write the connecting words in capitals, so each slot stands out from them. In Portuguese the formula reads: `NO CONTEXTO DE *<desafio>*, ESCOLHEMOS *<solução>* PARA OBTER *<benefício>*, ACEITANDO *<trade-off>*.`
 - Write directly, in active voice, and start each slot with the action, such as "use Redis" or "encrypt passwords". The roadmap body holds the details, such as the fronts, the milestone dates, and the providers.
 - Give each decision the next free ID, `D-01`, `D-02`, and so on, counting the archived phases too. An ID never changes and is never reused.
 - In both Active and Replaced, add a `### <YYYY-MM-DD>` heading per date, oldest first. Under the date, add one group per occasion: a meeting, a checkpoint, or one person deciding. Name the occasion and who agreed once, in the group's lead line.
 - When a decision replaces an older one, tag the new line `[CHANGED]` and end it with `(replaces D-<NN>)`. Move the older line unchanged to Replaced, under its original date and occasion, and end it with `(replaced by D-<NN>)`.
 - When `.agents/skills/feature-workflow/` is installed and an agreed decision also binds code, such as a datastore, a module layout, or a banned library, write a `team D-<NN>` constraint record for it in the same session with feature-workflow's `constraints.py new --origin "team D-<NN>"`, by `.agents/skills/feature-workflow/references/constraints.md`. Give it the scopes and paths it applies to. A `[CHANGED]` line that replaces such a decision gets a new record created with `--replaces <old-slug>`, which deletes the old record. `DECISIONS.md` stays for people and is never a coding constraint.
 - At a phase close, Replaced lines and the decisions the team archives move unchanged to `phases/<NN>-<slug>/DECISIONS.md`, as [Close the phase](../SKILL.md#close-the-phase) describes. That file follows this template, and its Roadmap link points at the archived `ROADMAP.md`.
-- The tag emojis, the bold tag, and the italic slots are functional markers of this format. Keep them when you apply `unslop`, whose rules on decorative emojis and boldface do not apply to decision lines.
+- The tag emojis, the bold tag, the capitalized connecting words, and the italic slots are functional markers of this format. Keep them when you apply `unslop`, whose rules on decorative emojis and boldface do not apply to decision lines.
