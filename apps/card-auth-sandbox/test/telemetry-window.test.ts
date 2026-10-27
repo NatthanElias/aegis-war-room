@@ -57,13 +57,15 @@ describe("telemetry report", () => {
       telemetry.finish(entry, "APPROVED");
     }
     const pending = telemetry.begin(fields("stuck", "acquirer-beta"));
-    now += 700;
+    now += 300;
+    telemetry.begin(fields("newer", "acquirer-beta"));
+    now += 400;
 
     const report = reportAcquirers(telemetry, 300, now);
 
     expect(report.acquirers["acquirer-beta"]).toMatchObject({
       approved: 100,
-      inFlight: 1,
+      inFlight: 2,
       oldestInFlightMs: 700,
       latencyMs: { p50: 50, p95: 95, max: 100 },
     });
