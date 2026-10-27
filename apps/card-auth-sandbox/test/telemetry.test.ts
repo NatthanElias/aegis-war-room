@@ -231,7 +231,13 @@ describe("telemetry", () => {
     const { sandbox } = await newSandbox();
     const until = encodeURIComponent("2026-10-27T13:00:00Z");
 
-    for (const since of ["Oct 27 2026 12:00 GMT", "2026/10/27", "1761566400000"]) {
+    // Why: a space-separated timestamp passes calendar validation, so only the ISO-format guard rejects it.
+    for (const since of [
+      "Oct 27 2026 12:00 GMT",
+      "2026/10/27",
+      "1761566400000",
+      "2026-10-27 12:00:00Z",
+    ]) {
       const response = await getJson(
         sandbox,
         `/telemetry/authorizations?since=${encodeURIComponent(since)}&until=${until}`,
