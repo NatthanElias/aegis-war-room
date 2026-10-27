@@ -6,7 +6,12 @@ import pg from "pg";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createTestDatabase, type TestDatabase } from "../../../test-support/database.ts";
 import { runNode } from "../../../test-support/process.ts";
-import { runMigrations } from "../src/migrations.ts";
+import { startProxy } from "../../../test-support/proxy.ts";
+import {
+  DEFAULT_MIGRATE_TIMEOUT_MS,
+  resolveMigrateTimeoutMs,
+  runMigrations,
+} from "../src/migrations.ts";
 
 // Why: readdir order is filesystem-dependent, so this hands back every listing reversed to make an unsorted run visible.
 vi.mock("node:fs/promises", async (importOriginal) => {
@@ -174,5 +179,28 @@ describe("migrate", () => {
       "SELECT pg_has_role('warroom_diag', 'pg_read_all_stats', 'member') AS member",
     );
     expect(member.rows[0].member).toBe(true);
+  });
+
+  test("unreachable database: migrate retries every second and exits 1 after the timeout", async () => {
+    const proxy = await startProxy();
+    cleanups.push(() => proxy.close());
+    const url = `postgres://postgres:warroom@127.0.0.1:${proxy.port}/postgres`;
+
+    const startedAt = Date.now();
+    const run = await runNode(migrateScript, { DATABASE_URL: url, MIGRATE_TIMEOUT_MS: "3000" });
+
+    expect(run.code).toBe(1);
+    expect(run.stderr).toContain("unreachable");
+    expect(proxy.attempts).toBeGreaterThanOrEqual(3);
+    expect(Date.now() - startedAt).toBeGreaterThanOrEqual(3000);
+  });
+
+  test("unreachable database timeout is 60000 ms unless MIGRATE_TIMEOUT_MS says otherwise", () => {
+    expect(resolveMigrateTimeoutMs({})).toBe(60000);
+    expect(DEFAULT_MIGRATE_TIMEOUT_MS).toBe(60000);
+    expect(resolveMigrateTimeoutMs({ MIGRATE_TIMEOUT_MS: "3000" })).toBe(3000);
+    expect(() => resolveMigrateTimeoutMs({ MIGRATE_TIMEOUT_MS: "soon" })).toThrow(
+      /MIGRATE_TIMEOUT_MS/,
+    );
   });
 });
