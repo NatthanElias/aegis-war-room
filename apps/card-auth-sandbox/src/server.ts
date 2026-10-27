@@ -8,6 +8,7 @@ import { monitorDatabase } from "./database-monitor.ts";
 import type { AcquirerName } from "./routing.ts";
 import { createTelemetry } from "./telemetry.ts";
 import { answerTelemetry } from "./telemetry-routes.ts";
+import { startTraffic } from "./traffic.ts";
 
 export interface SandboxOptions {
   readonly port: number;
@@ -15,6 +16,8 @@ export interface SandboxOptions {
   readonly host?: string;
   /** Replaces the simulated acquirers; tests use it to spy on calls or make an acquirer fail. */
   readonly acquirers?: Acquirers;
+  /** Synthetic authorizations per second; 0 or unset generates none. */
+  readonly trafficRate?: number;
 }
 
 export interface RunningSandbox {
@@ -61,6 +64,11 @@ export async function startSandbox(options: SandboxOptions): Promise<RunningSand
     response.writeHead(404).end();
   });
   await new Promise<void>((resolve) => server.listen(options.port, options.host, resolve));
+  const traffic = startTraffic({
+    ratePerSec: options.trafficRate ?? 0,
+    authorize: (pan, amountCents) => authorize(context, { pan, amountCents }),
+    telemetry,
+  });
 
   return {
     port: (server.address() as AddressInfo).port,
@@ -69,6 +77,7 @@ export async function startSandbox(options: SandboxOptions): Promise<RunningSand
     setAcquirerDelay: (acquirer, ms) => acquirers.setDelay(acquirer, ms),
     async close() {
       monitor.stop();
+      traffic.stop();
       // Why: aborting lets authorizations that wait on a slow acquirer roll back, so pool.end() does not wait for them.
       shutdown.abort();
       server.closeAllConnections();
