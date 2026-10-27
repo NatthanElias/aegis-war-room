@@ -10,7 +10,7 @@ npm run smoke                      # probes the running stack; runs no Docker co
 docker compose down
 ```
 
-Smoke reads sandbox health through warroom-server because the sandbox has no published port. Set `SMOKE_SANDBOX_URL` to probe it directly; smoke also respects `WARROOM_PORT`.
+Smoke also opens `warroom.incident` as `alice` and checks the severity, phase, and roster. Smoke reads sandbox health through warroom-server because the sandbox has no published port. Set `SMOKE_SANDBOX_URL` to probe it directly; smoke also respects `WARROOM_PORT`.
 
 The sandbox authorizes synthetic Visa and Mastercard traffic by itself (`TRAFFIC_RATE: "5"` in compose; unset or `0` generates none). Its read-only telemetry has no published port, so read it inside the container:
 

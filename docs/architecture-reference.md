@@ -77,12 +77,15 @@ An authorization that began before the window is left out of the counts even whi
 
 ### Session singleton: `app.warroom`
 
-Defined with `defineDoc({ kind: "app.warroom", scope: "session" })` and checkpointed every 50 operations:
+Defined with `defineDoc({ kind: "app.warroom", version: 1, scope: "session", initial, checkpointWhen })` in `apps/warroom-server/src/incident-store.ts`. `checkpointWhen` stores a complete base once 49 deltas follow the newest base, which gives "checkpointed every 50 operations". A new incident starts at `SEV-1` and `DETECT` with the seeded roster.
+
+Version 1 holds only `sev`, `phase`, and `roster`. The other rows of the table are added by the features that need them, each with a version bump and a `migrate` function.
+
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `sev` | `"SEV-1" \| "SEV-2" \| "SEV-3"` | Current incident severity. |
-| `phase` | `"DETECT" \| "TRIAGE" \| "MITIGATE" \| "RESOLVE" \| "POSTMORTEM"` | Current phase governed by `TRANSITIONS`. |
+| `phase` | `"DETECT" \| "TRIAGE" \| "MITIGATE" \| "RESOLVE" \| "POSTMORTEM"` | Current phase governed by `PHASE_TRANSITIONS` in `packages/contracts/src/incident.ts`. |
 | `semanticGuardEnabled` | `boolean` | Controls whether `Jev` Spot C screens external webhook bodies. |
 | `hypotheses` | `Record<string, Hypothesis>` | Keyed by `H1`, `H2`, and so on. States: `"active" \| "ruled_out" \| "confirmed"`. Tracks `supportingEvidenceIds`, `contradictingEvidenceIds`, and `missingEvidence` (`{ id, need, askOf? }`). |
 | `evidence` | `Record<string, EvidenceEntry>` | Immutable `EV-*` facts containing `observation`, `quote`, `source` (`{ kind: "receipt", receiptIds }` or `{ kind: "human", userId, role }`), and `createdAt`. |
@@ -90,6 +93,12 @@ Defined with `defineDoc({ kind: "app.warroom", scope: "session" })` and checkpoi
 | `proposals` | `Record<string, BreakGlassProposal>` | Drafted, Maker-signed, Checker-approved, and executed Break-Glass records (`BG-*`), including `payloadHash` and `rollbackSafety`. |
 | `updates` | `StakeholderUpdate[]` | Published Incident Commander bridge updates. |
 | `roster` | `Record<string, SeededUser>` | Seeded identities: `alice` (`IC`), `bob` (`Responder`), and `carol` (`Observer`). |
+
+### Chord objects for the incident
+
+The server writes `app.warroom` only through `harness.commit`. One host-lifetime watch (`watchDoc`) mirrors each committed revision into the local object `warroom.incident-mirror`, so a browser never sees a value that is not yet stored.
+
+Browsers hold the remote type `warroom.incident` v1 over the same `/chord` socket as `warroom.shell` v1. Its state is `sev`, `phase`, and `roster`. Its methods are `setPhase({ phase })` and `setSev({ sev })`. Each method asserts the caller's role from the Chord principal and rejects with `forbidden` unless the caller is the `IC`. `setPhase` checks the transition table inside the same commit and rejects with `invalid` for a move the table does not allow. The factory refuses the server's own principal with `forbidden`.
 
 ### Phase transition table
 
