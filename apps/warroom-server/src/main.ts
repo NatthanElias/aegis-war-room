@@ -10,6 +10,7 @@ const server = await startServer({
   port: Number(process.env.PORT ?? 3000),
   incidentId: process.env.INCIDENT_ID ?? "demo",
   incidentsDir: process.env.INCIDENTS_DIR ?? "incidents",
+  sandboxUrl: process.env.SANDBOX_URL ?? "http://localhost:4000",
   databaseUrl,
 });
 console.log(`warroom-server listening on ${server.port}, incident ${server.incidentId}`);

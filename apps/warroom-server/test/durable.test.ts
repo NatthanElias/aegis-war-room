@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, test } from "vitest";
+import { openShell } from "../../../test-support/shell-client.ts";
 import { startServer } from "../src/server.ts";
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -16,10 +17,18 @@ describe("durable incident file", () => {
     const incidentsDir = await mkdtemp(join(tmpdir(), "wr-incidents-"));
     cleanups.push(() => rm(incidentsDir, { recursive: true, force: true }));
     const file = join(incidentsDir, "test-inc.db");
-    const options = { port: 0, host: "127.0.0.1", incidentId: "test-inc", incidentsDir };
+    const options = {
+      port: 0,
+      host: "127.0.0.1",
+      incidentId: "test-inc",
+      incidentsDir,
+      sandboxUrl: "http://127.0.0.1:1",
+    };
 
     const first = await startServer(options);
-    const firstConversation = first.conversationId;
+    const firstShell = await openShell(first.port, "alice");
+    const firstConversation = firstShell.latest().conversationId;
+    firstShell.close();
     await first.close();
 
     expect(existsSync(file)).toBe(true);
@@ -30,7 +39,9 @@ describe("durable incident file", () => {
     marker.close();
 
     const second = await startServer(options);
-    const secondConversation = second.conversationId;
+    const secondShell = await openShell(second.port, "alice");
+    const secondConversation = secondShell.latest().conversationId;
+    secondShell.close();
     await second.close();
 
     expect(secondConversation).toBe(firstConversation);
