@@ -97,8 +97,15 @@ export function connectWarroom(
       const emit = () => {
         onIncident?.({ sev: ref.sev.value, phase: ref.phase.value, roster: ref.roster.value });
       };
+      // Why: `subscribe` calls back at once with the current value, which would repeat the first state per member.
+      let hydrated = false;
+      for (const member of [ref.sev, ref.phase, ref.roster]) {
+        member.subscribe(() => {
+          if (hydrated) emit();
+        });
+      }
+      hydrated = true;
       emit();
-      for (const member of [ref.sev, ref.phase, ref.roster]) member.subscribe(emit);
     })
     .catch(() => {
       // Context: same as the shell above; the close event reports a refused socket.

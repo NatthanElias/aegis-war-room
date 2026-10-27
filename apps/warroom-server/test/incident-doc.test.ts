@@ -1,13 +1,21 @@
 import { DatabaseSync } from "node:sqlite";
+import { fileURLToPath } from "node:url";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
+import pg from "pg";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { createTestDatabase } from "../../../test-support/database.ts";
 import { openIncident } from "../../../test-support/incident-client.ts";
 import {
   makeTempIncidents,
   SEEDED_ROSTER,
   TEST_INCIDENT_ID,
 } from "../../../test-support/incident-server.ts";
+import { type RunningService, startService } from "../../../test-support/service.ts";
+import { runMigrations } from "../../card-auth-sandbox/src/migrations.ts";
 import { startServer } from "../src/server.ts";
+
+const mainScript = fileURLToPath(new URL("../src/main.ts", import.meta.url));
+const migrationsDir = fileURLToPath(new URL("../../card-auth-sandbox/migrations", import.meta.url));
 
 // Why: observe the real storage boundary, so a restarted server that quietly used another file cannot pass
 // on the stored phase alone.
@@ -77,5 +85,45 @@ describe("app.warroom document", () => {
     reopened.close();
     expect(tables).toHaveLength(1);
     expect(await incidents.read()).toMatchObject({ phase: "MITIGATE", sev: "SEV-3" });
+  });
+
+  test("resolved phase survives SIGKILL", async () => {
+    const incidents = await makeTempIncidents();
+    cleanups.push(incidents.remove);
+    const db = await createTestDatabase();
+    cleanups.push(() => db.drop());
+    const admin = new pg.Client({ connectionString: db.url });
+    await admin.connect();
+    try {
+      await runMigrations(admin, migrationsDir);
+    } finally {
+      await admin.end();
+    }
+    const start = async (): Promise<RunningService> => {
+      const service = await startService(mainScript, {
+        DATABASE_URL: db.roleUrl("warroom_diag"),
+        INCIDENTS_DIR: incidents.dir,
+        INCIDENT_ID: TEST_INCIDENT_ID,
+        SANDBOX_URL: "http://127.0.0.1:1",
+      });
+      cleanups.push(() => service.stop());
+      return service;
+    };
+
+    const first = await start();
+    const alice = await openIncident(first.port, "alice");
+    expect(alice.latest().phase).toBe("DETECT");
+    await alice.setPhase("TRIAGE");
+    // Hazard: no graceful close. The kill must follow the resolved call directly, or a late commit could slip in.
+    const exited = new Promise((resolve) => first.child.once("exit", resolve));
+    first.child.kill("SIGKILL");
+    await exited;
+    alice.close();
+    expect(first.child.signalCode).toBe("SIGKILL");
+
+    const second = await start();
+    const bob = await openIncident(second.port, "bob");
+    expect(bob.latest().phase).toBe("TRIAGE");
+    bob.close();
   });
 });
