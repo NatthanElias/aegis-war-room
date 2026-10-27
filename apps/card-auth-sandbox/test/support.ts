@@ -93,6 +93,13 @@ export function createHarness() {
   };
 }
 
+/** `GET path` on a running sandbox, with the status and the raw body text next to the parsed JSON. */
+export async function getJson(sandbox: { readonly port: number }, path: string) {
+  const response = await fetch(`http://127.0.0.1:${sandbox.port}${path}`);
+  const text = await response.text();
+  return { status: response.status, text, body: JSON.parse(text) as unknown };
+}
+
 /** The SQLSTATE of the error a promise rejects with. */
 export async function sqlState(promise: Promise<unknown>): Promise<string | undefined> {
   try {

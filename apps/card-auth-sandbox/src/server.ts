@@ -7,6 +7,7 @@ import { type Authorization, authorize } from "./authorize.ts";
 import { monitorDatabase } from "./database-monitor.ts";
 import type { AcquirerName } from "./routing.ts";
 import { createTelemetry } from "./telemetry.ts";
+import { answerTelemetry } from "./telemetry-routes.ts";
 
 export interface SandboxOptions {
   readonly port: number;
@@ -26,6 +27,15 @@ export interface RunningSandbox {
   close(): Promise<void>;
 }
 
+/** The request target as a URL, or a path no route matches when the target is malformed. */
+function requestUrl(target: string | undefined): URL {
+  try {
+    return new URL(target ?? "/", "http://sandbox.invalid");
+  } catch {
+    return new URL("http://sandbox.invalid/");
+  }
+}
+
 export async function startSandbox(options: SandboxOptions): Promise<RunningSandbox> {
   const pool = createAppPool(options.databaseUrl);
   const monitor = monitorDatabase(pool);
@@ -39,6 +49,14 @@ export async function startSandbox(options: SandboxOptions): Promise<RunningSand
       response.writeHead(monitor.ready ? 200 : 503, { "content-type": "application/json" });
       response.end(JSON.stringify({ status: monitor.ready ? "ok" : "starting" }));
       return;
+    }
+    if (request.method === "GET") {
+      const answer = answerTelemetry(requestUrl(request.url), telemetry, pool);
+      if (answer) {
+        response.writeHead(answer.status, { "content-type": "application/json" });
+        response.end(JSON.stringify(answer.body));
+        return;
+      }
     }
     response.writeHead(404).end();
   });

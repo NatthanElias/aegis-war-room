@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createAppPool } from "../src/app-pool.ts";
 import { authorize } from "../src/authorize.ts";
 import { createTelemetry } from "../src/telemetry.ts";
-import { createHarness, recordingAcquirers, waitFor } from "./support.ts";
+import { createHarness, getJson, recordingAcquirers, waitFor } from "./support.ts";
 
 const harness = createHarness();
 afterEach(() => harness.cleanup());
@@ -143,7 +143,8 @@ describe("authorize", () => {
     const { acquirers, calls } = recordingAcquirers({ failing: "acquirer-beta" });
     const pool = createAppPool(db.roleUrl("sandbox_app"));
     harness.onCleanup(() => pool.end());
-    const context = { pool, acquirers, telemetry: createTelemetry() };
+    const telemetry = createTelemetry();
+    const context = { pool, acquirers, telemetry };
     const admin = await harness.client(db.url);
     await authorize(context, { pan: "4111111111111111", amountCents: 1000 });
     const idleBefore = pool.idleCount;
@@ -156,8 +157,53 @@ describe("authorize", () => {
     const failed = calls.find((call) => call.acquirer === "acquirer-beta");
     expect(failed).toBeDefined();
     expect(await holdsFor(admin, failed?.traceId ?? "")).toHaveLength(0);
+    expect(telemetry.entries().find((entry) => entry.traceId === failed?.traceId)?.status).toBe(
+      "ERROR",
+    );
     expect((await admin.query("SELECT count(*)::int AS n FROM card_holds")).rows[0].n).toBe(1);
     expect(pool.idleCount).toBe(idleBefore);
     expect(pool.totalCount).toBe(1);
+  });
+
+  test("rolls back when the connection dies", async () => {
+    const db = await harness.migratedDatabase();
+    const { acquirers, calls } = recordingAcquirers();
+    const sandbox = await harness.sandbox(db, { acquirers });
+    sandbox.setAcquirerDelay("acquirer-beta", 2000);
+    const admin = await harness.client(db.url);
+    // A checked-out client that dies emits `error`; with no listener that would be an uncaught exception.
+    const uncaught: Error[] = [];
+    const onUncaught = (error: Error) => uncaught.push(error);
+    process.on("uncaughtException", onUncaught);
+    harness.onCleanup(async () => {
+      process.off("uncaughtException", onUncaught);
+    });
+
+    const pending = sandbox.authorize("5555555555554444", 1000);
+    const failure = pending.then(
+      () => undefined,
+      (error: Error) => error,
+    );
+    const call = await waitFor("the acquirer call", () => calls[0], 1500);
+    const killed = await admin.query(
+      `SELECT pg_terminate_backend(pid) AS ok FROM pg_stat_activity
+       WHERE datname = $1 AND application_name = 'card-auth-sandbox' AND state = 'idle in transaction'`,
+      [db.name],
+    );
+    expect(killed.rows).toEqual([{ ok: true }]);
+
+    expect((await failure)?.message).toMatch(/connection/i);
+    const telemetry = await getJson(sandbox, "/telemetry/acquirers");
+    expect(telemetry.body).toMatchObject({
+      acquirers: { "acquirer-beta": { errors: 1, approved: 0, inFlight: 0 } },
+    });
+    expect(await holdsFor(admin, call.traceId)).toHaveLength(0);
+
+    sandbox.setAcquirerDelay("acquirer-beta", 0);
+    const next = await sandbox.authorize("5555555555554444", 1000);
+    const rows = await holdsFor(admin, next.traceId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ status: "APPROVED", acquirer: "acquirer-beta" });
+    expect(uncaught.map((error) => error.message)).toEqual([]);
   });
 });
