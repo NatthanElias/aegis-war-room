@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-27T05:20:42.109457+00:00",
+  "id": "1d2839f5f6ba",
+  "observations": [
+    {
+      "feature": "walking-skeleton",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "persistence",
+  "status": "candidate",
+  "text": "Observe discriminating persisted state through the restarted runtime rather than reading an untouched original file or comparing default identifiers."
+}
