@@ -66,7 +66,7 @@ gantt
     webhook-injection US-11            :wh, after crash, 1d
     semantic-guard US-12               :guard, after wh, 1d
     tpv-token-meter US-13              :tpv, after guard, 1d
-    e2e-suite US-14                    :e2e, after tpv, 2d
+    e2e-suite EN-01                    :e2e, after tpv, 2d
     chaos-bad-bin US-15                :bin, after e2e, 1d
     rollback-safety US-16              :rbs, after bin, 2d
     remediation-spec US-17             :spec, after rbs, 1d
@@ -105,7 +105,7 @@ The schedule rests on these assumptions:
 | Should | Overlay I, webhook prompt injection and PAN leak | `webhook-injection` | S | US-11 | War room |
 | Should | Jev Spot C semantic injection guard toggle | `semantic-guard` | S | US-12 | War room |
 | Should | Card TPV bleed versus agent token spend meter | `tpv-token-meter` | S | US-13 | War room |
-| Should | Deterministic end-to-end suite for the demo scenarios | `e2e-suite` | M | US-14 | War room |
+| Should | Deterministic end-to-end suite for the demo scenarios | `e2e-suite` | M | EN-01 | War room |
 | Should | Scenario B, the bad BIN config rollout | `chaos-bad-bin` | S | US-15 | War room |
 | Should | Rollback Safety check | `rollback-safety` | M | US-16 | War room |
 | Should | `REMEDIATION_SPEC.md` export in POSTMORTEM | `remediation-spec` | S | US-17 | War room |
@@ -143,7 +143,7 @@ At a phase close, the Priority column keeps the phase's priorities, and each row
 - Provides: None, because there is no other front to use them.
 - Uses: None.
 - Depends on: milestone 0.
-- Stories: US-01 to US-19.
+- Stories: US-01 to US-13, US-15 to US-19, and EN-01. US-14 became EN-01.
 - Status: on track. Work starts 2026-10-27.
 
 ## Shared files

@@ -15,13 +15,13 @@ Roadmap: [ROADMAP.md](ROADMAP.md). Each line records one decision that changes s
 
 Phase 01 kickoff, agreed by Natthan:
 
-- D-01 🟢 **[CHOICE]** In the context of *the roadmap documents*, we chose *to write them in English* to achieve *one language with the requests and the architecture docs*.
-- D-02 🟢 **[CHOICE]** In the context of *a full architecture that needs about 40 days of Musts in 28 days*, we chose *the cascade decoy demo story as the Must set, with Overlay I, Scenario B, Rollback Safety, and the spec export as Shoulds* to achieve *a demo that works end to end by the deadline*, accepting *that governance extras may be cut*.
-- D-03 🟢 **[CHOICE]** In the context of *Musts that exceed 60% of the time budget*, we chose *to keep every Must at full size, with four specialists, all four UI tabs, and the causal regex check* to achieve *the complete demo story*, accepting *no slack before the Shoulds*.
-- D-04 🟢 **[CHOICE]** In the context of *falling behind schedule*, we chose *to cut steer-stop, human-attestation, batch-triage, stakeholder-update, remediation-spec, rollback-safety, chaos-bad-bin, e2e-suite, tpv-token-meter, semantic-guard, and webhook-injection, in that order* to achieve *governance features that survive longest*.
-- D-05 🟢 **[CHOICE]** In the context of *turning sizes into working days*, we chose *an AI-assisted pace of 1 day for S, 2 for M, and 3 for L* to achieve *a schedule where the Musts end on 2026-11-23*, accepting *that the standard pace would overrun the deadline*.
-- D-06 🟢 **[CHOICE]** In the context of *holidays before the deadline*, we chose *to work every weekday, holidays included* to achieve *28 working days until the defense*.
-- D-07 🟢 **[CHOICE]** In the context of *keeping the PoC local and reproducible*, we chose *to leave out conversation fork, intent.md, real authentication, real acquirers, and cloud deployment* to achieve *a one-command startup with docker compose*.
+- D-01 🟢 **[CHOICE]** IN THE CONTEXT OF *the roadmap documents*, WE CHOSE *to write them in English* TO ACHIEVE *one language with the requests and the architecture docs*.
+- D-02 🟢 **[CHOICE]** IN THE CONTEXT OF *a full architecture that needs about 40 days of Musts in 28 days*, WE CHOSE *the cascade decoy demo story as the Must set, with Overlay I, Scenario B, Rollback Safety, and the spec export as Shoulds* TO ACHIEVE *a demo that works end to end by the deadline*, ACCEPTING *that governance extras may be cut*.
+- D-03 🟢 **[CHOICE]** IN THE CONTEXT OF *Musts that exceed 60% of the time budget*, WE CHOSE *to keep every Must at full size, with four specialists, all four UI tabs, and the causal regex check* TO ACHIEVE *the complete demo story*, ACCEPTING *no slack before the Shoulds*.
+- D-04 🟢 **[CHOICE]** IN THE CONTEXT OF *falling behind schedule*, WE CHOSE *to cut steer-stop, human-attestation, batch-triage, stakeholder-update, remediation-spec, rollback-safety, chaos-bad-bin, e2e-suite, tpv-token-meter, semantic-guard, and webhook-injection, in that order* TO ACHIEVE *governance features that survive longest*.
+- D-05 🟢 **[CHOICE]** IN THE CONTEXT OF *turning sizes into working days*, WE CHOSE *an AI-assisted pace of 1 day for S, 2 for M, and 3 for L* TO ACHIEVE *a schedule where the Musts end on 2026-11-23*, ACCEPTING *that the standard pace would overrun the deadline*.
+- D-06 🟢 **[CHOICE]** IN THE CONTEXT OF *holidays before the deadline*, WE CHOSE *to work every weekday, holidays included* TO ACHIEVE *28 working days until the defense*.
+- D-07 🟢 **[CHOICE]** IN THE CONTEXT OF *keeping the PoC local and reproducible*, WE CHOSE *to leave out conversation fork, intent.md, real authentication, real acquirers, and cloud deployment* TO ACHIEVE *a one-command startup with docker compose*.
 
 ## Replaced
 

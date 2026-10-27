@@ -1,17 +1,19 @@
-# War room user stories
+# War room stories
 
 Roadmap: [ROADMAP.md](ROADMAP.md).
 
-## US-01 Start the whole stack with one command
+## User stories
+
+### US-01 Start the whole stack with one command
 
 Front: War room. Priority: Must. Feature: `walking-skeleton`.
 
-As a developer, I want one command to start PostgreSQL, the sandbox, and the war room server, so that anyone can run the PoC on a fresh machine.
+As a presenter, I want one command to start PostgreSQL, the sandbox, and the war room server, so that I can run the defense on any fresh machine.
 
 ```gherkin
 Scenario: Fresh start
   Given a clean checkout with Docker installed
-  When the developer runs docker compose up
+  When the presenter runs docker compose up
   Then PostgreSQL, card-auth-sandbox, and warroom-server report healthy
   And a browser opens the war room shell connected over a Chord WebSocket
 
@@ -21,7 +23,7 @@ Scenario: Database not ready
   Then they wait for the database instead of exiting
 ```
 
-## US-02 Simulate card authorization traffic
+### US-02 Simulate card authorization traffic
 
 Front: War room. Priority: Must. Feature: `card-auth-sandbox`.
 
@@ -40,7 +42,7 @@ Scenario: Acquirer slow to answer
   Then the telemetry endpoints show the latency rise on acquirer-beta only
 ```
 
-## US-03 Inject the cascade decoy
+### US-03 Inject the cascade decoy
 
 Front: War room. Priority: Must. Feature: `chaos-cascade-decoy`.
 
@@ -59,7 +61,7 @@ Scenario: Observer tries to inject
   Then the action is denied
 ```
 
-## US-04 Share one incident state across responders
+### US-04 Share one incident state across responders
 
 Front: War room. Priority: Must. Feature: `warroom-state`.
 
@@ -77,7 +79,7 @@ Scenario: Role denies a phase change
   Then the server rejects the change and the phase stays the same
 ```
 
-## US-05 Investigate with receipt-backed tools
+### US-05 Investigate with receipt-backed tools
 
 Front: War room. Priority: Must. Feature: `investigators`.
 
@@ -96,7 +98,7 @@ Scenario: Application pool exhausted
   Then the query runs on the diagnostic pool and is not blocked
 ```
 
-## US-06 Accept only atomic, quoted evidence
+### US-06 Accept only atomic, quoted evidence
 
 Front: War room. Priority: Must. Feature: `evidence-gate`.
 
@@ -115,7 +117,7 @@ Scenario: Speculation rejected
   And the rejection appears in the rejected log
 ```
 
-## US-07 Run competing hypotheses
+### US-07 Run competing hypotheses
 
 Front: War room. Priority: Must. Feature: `coordinator`.
 
@@ -133,7 +135,7 @@ Scenario: Confirmation blocked
   Then the confirmation is rejected
 ```
 
-## US-08 Work the incident in a split-screen UI
+### US-08 Work the incident in a split-screen UI
 
 Front: War room. Priority: Must. Feature: `warroom-ui`.
 
@@ -151,7 +153,7 @@ Scenario: Switch user
   Then the connection reopens as Carol and the controls Carol may not use are disabled
 ```
 
-## US-09 Approve a remediation with two keys
+### US-09 Approve a remediation with two keys
 
 Front: War room. Priority: Must. Feature: `break-glass`.
 
@@ -169,7 +171,7 @@ Scenario: Same person signs both keys
   Then the signature is rejected
 ```
 
-## US-10 Survive a war room crash
+### US-10 Survive a war room crash
 
 Front: War room. Priority: Must. Feature: `crash-resume`.
 
@@ -183,7 +185,7 @@ Scenario: Kill during an investigation
   And the investigation continues
 ```
 
-## US-11 Contain a poisoned webhook
+### US-11 Contain a poisoned webhook
 
 Front: War room. Priority: Should. Feature: `webhook-injection`.
 
@@ -201,7 +203,7 @@ Scenario: Hidden Unicode stripped
   Then the characters are removed before the receipt is stored
 ```
 
-## US-12 Screen webhooks for prompt injection
+### US-12 Screen webhooks for prompt injection
 
 Front: War room. Priority: Should. Feature: `semantic-guard`.
 
@@ -219,7 +221,7 @@ Scenario: Classifier unavailable
   Then the body is quarantined
 ```
 
-## US-13 Compare outage cost with agent cost
+### US-13 Compare outage cost with agent cost
 
 Front: War room. Priority: Should. Feature: `tpv-token-meter`.
 
@@ -232,25 +234,7 @@ Scenario: Live meter
   Then she sees TPV bleed in dollars per minute and token spend in dollars, both updating
 ```
 
-## US-14 Replay the demo scenarios deterministically
-
-Front: War room. Priority: Should. Feature: `e2e-suite`.
-
-As a developer, I want an automated end-to-end suite that runs the demo scenarios with deterministic model and classifier doubles, so that a change cannot silently break the defense.
-
-```gherkin
-Scenario: Suite passes
-  Given the deterministic chat and classifier providers
-  When the developer runs the end-to-end suite
-  Then the decoy disproof, the Two-Key checks, and the crash resume all pass
-
-Scenario: Regression caught
-  Given a change that lets one user sign both keys
-  When the suite runs
-  Then it fails on the Maker and Checker check
-```
-
-## US-15 Inject a bad BIN configuration
+### US-15 Inject a bad BIN configuration
 
 Front: War room. Priority: Should. Feature: `chaos-bad-bin`.
 
@@ -263,7 +247,7 @@ Scenario: Faulty rollout
   Then Mastercard authorizations route wrongly and gateway declines spike
 ```
 
-## US-16 Check that a rollback is safe
+### US-16 Check that a rollback is safe
 
 Front: War room. Priority: Should. Feature: `rollback-safety`.
 
@@ -281,7 +265,7 @@ Scenario: Holds still in flight
   Then the badge shows draining and unsafe
 ```
 
-## US-17 Export the remediation spec
+### US-17 Export the remediation spec
 
 Front: War room. Priority: Should. Feature: `remediation-spec`.
 
@@ -299,7 +283,7 @@ Scenario: Too early
   Then the export is locked
 ```
 
-## US-18 Publish a stakeholder update
+### US-18 Publish a stakeholder update
 
 Front: War room. Priority: Should. Feature: `stakeholder-update`.
 
@@ -317,11 +301,11 @@ Scenario: Responder tries to publish
   Then the server rejects it
 ```
 
-## US-19 Triage failures in batches
+### US-19 Triage failures in batches
 
 Front: War room. Priority: Should. Feature: `batch-triage`.
 
-As an investigator, I want to classify up to 50 failed authorizations in one Codemode script, so that the reasoning model sees category counts instead of raw records.
+As an Incident Commander, I want up to 50 failed authorizations classified in one Codemode script, so that I see category counts and the top anomalous traces instead of raw records, at a fraction of the token cost.
 
 ```gherkin
 Scenario: Batch classified
@@ -333,4 +317,24 @@ Scenario: Classifier stops early
   Given the classifier returns an error for the batch
   When the script checks the result
   Then it reports the failure instead of counts
+```
+
+## Enablers
+
+### EN-01 Replay the demo scenarios deterministically
+
+Front: War room. Priority: Should. Feature: `e2e-suite`. Enables: US-03, US-07, US-09, US-10. Formerly US-14.
+
+An automated end-to-end suite that runs the demo scenarios with deterministic model and classifier doubles, so that a change cannot silently break the decoy disproof, the Two-Key checks, or the crash resume.
+
+```gherkin
+Scenario: Suite passes
+  Given the deterministic chat and classifier providers
+  When the developer runs the end-to-end suite
+  Then the decoy disproof, the Two-Key checks, and the crash resume all pass
+
+Scenario: Regression caught
+  Given a change that lets one user sign both keys
+  When the suite runs
+  Then it fails on the Maker and Checker check
 ```
