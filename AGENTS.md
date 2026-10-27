@@ -58,3 +58,5 @@ Work on the user's current checkout. Never switch branches or revisions or creat
 - Entry file: AGENTS.md is the only always-on file; Claude Code loads it because no CLAUDE.md exists. Do not create CLAUDE.md.
 - Question tool: keep each question within 40 words and its options short. Put the background in chat before calling the tool, because the tool crops long text.
 - Skill sync: reinstall the project skills from the skills repository's per-harness `project/` collection, then rerun workflow-setup. List each local edit to an installed skill file here as `- Override <skill>/<file>: <reason>.`
+- Orchestration: the Codex root orchestrator always uses the T3 mode of the global `$orchestrate` skill and its T3 roster, never native mode or the custom agents in `.codex/agents/`. A worker dispatched through T3 follows its brief instead.
+- No T3: if the session does not expose T3's `delegate_task`, do not fall back to native subagents; tell the user, and work in the main session only if they agree.
