@@ -75,6 +75,37 @@ describe("authorize", () => {
     expect(pool.totalCount).toBe(0);
   });
 
+  test("rejects a malformed card number or amount before any database work", async () => {
+    const db = await harness.migratedDatabase();
+    const { acquirers, calls } = recordingAcquirers();
+    const pool = createAppPool(db.roleUrl("sandbox_app"));
+    harness.onCleanup(() => pool.end());
+    const telemetry = createTelemetry();
+    const context = { pool, acquirers, telemetry };
+    const cases = [
+      { pan: "4111", amountCents: 1000, code: "invalid_pan" },
+      { pan: "41111111111111111111", amountCents: 1000, code: "invalid_pan" },
+      { pan: "4111111111111111", amountCents: 0, code: "invalid_amount" },
+      { pan: "4111111111111111", amountCents: -5, code: "invalid_amount" },
+      { pan: "4111111111111111", amountCents: 10.5, code: "invalid_amount" },
+      { pan: "4111111111111111", amountCents: 2_147_483_648, code: "invalid_amount" },
+    ];
+    expect(cases).toHaveLength(6);
+
+    for (const { pan, amountCents, code } of cases) {
+      await expect(
+        authorize(context, { pan, amountCents }),
+        `${pan} ${amountCents}`,
+      ).rejects.toMatchObject({
+        code,
+      });
+    }
+
+    expect(calls).toHaveLength(0);
+    expect(pool.totalCount).toBe(0);
+    expect(telemetry.entries()).toHaveLength(0);
+  });
+
   test("declines cents ending in 51", async () => {
     const db = await harness.migratedDatabase();
     const sandbox = await harness.sandbox(db);

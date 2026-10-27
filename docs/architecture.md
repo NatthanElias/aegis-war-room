@@ -37,6 +37,8 @@ Separating database access into three small pools solves both contention and vis
 - **Diagnostic pool.** Uses 2 read-only connections under a dedicated `warroom_diag` role with `pg_read_all_stats`, a 2-second statement timeout, and a 500-millisecond lock timeout. Investigators can inspect stuck `card-auth-sandbox` sessions even when application traffic is completely stalled.
 - **Admin pool.** Uses 2 connections reserved for idempotent Break-Glass mutations and rollback checks.
 
+The sandbox's own telemetry routes answer from an in-process window and the pool's live counters rather than from SQL. A query through the application pool would block exactly when that pool saturates, which is when investigators need the numbers.
+
 PostgreSQL multi-version concurrency control also hides uncommitted `card_holds` rows from a plain `SELECT COUNT(*)` query on `status = 'PENDING'`. Checking both committed `PENDING` rows and `idle in transaction` sessions in `pg_stat_activity` prevents the rollback check from falsely reporting zero in-flight holds during an active stall.
 
 ## Why the war room pairs System 2 agents with Jev System One decisions

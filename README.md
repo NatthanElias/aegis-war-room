@@ -12,6 +12,15 @@ docker compose down
 
 Smoke reads sandbox health through warroom-server because the sandbox has no published port. Set `SMOKE_SANDBOX_URL` to probe it directly; smoke also respects `WARROOM_PORT`.
 
+The sandbox authorizes synthetic Visa and Mastercard traffic by itself (`TRAFFIC_RATE: "5"` in compose; unset or `0` generates none). Its read-only telemetry has no published port, so read it inside the container:
+
+```bash
+docker compose exec -T card-auth-sandbox wget -qO- http://127.0.0.1:4000/telemetry/acquirers   # approvals and latency per acquirer
+docker compose exec -T card-auth-sandbox wget -qO- http://127.0.0.1:4000/telemetry/pool         # app pool counters
+```
+
+`/telemetry/authorizations` also takes `since` and `until` (ISO 8601, at most 3600 s apart). Routes and shapes: `docs/architecture-reference.md`.
+
 Open `http://localhost:8080/?user=alice` (or `bob`, `carol`). Change the host port with `WARROOM_PORT`.
 
 ## Develop
@@ -39,7 +48,7 @@ Set `TEST_DATABASE_URL` to use another server (default `postgres://postgres:warr
 | Folder | Holds |
 | --- | --- |
 | `apps/warroom-server` | Chord WebSocket host, pi-durable incident file, static web bundle |
-| `apps/card-auth-sandbox` | Payment sandbox service, SQL migrations, `migrate` |
+| `apps/card-auth-sandbox` | Payment sandbox service (BIN routing, acquirers, traffic, telemetry), SQL migrations, `migrate` |
 | `apps/web` | React shell built by Vite |
-| `packages/contracts` | Chord contracts and seeded users shared by server and browser |
+| `packages/contracts` | Chord contracts, seeded users, and sandbox telemetry schemas |
 | `scripts/smoke.ts` | Smoke probes for a running stack |

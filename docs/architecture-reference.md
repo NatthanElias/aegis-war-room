@@ -30,6 +30,47 @@ Repository agent artifacts use vendor-neutral file paths:
 | `warroom-diag` | `warroom_diag` with `pg_read_all_stats` | `2` | `connectionTimeoutMillis: 2000`, `statement_timeout = '2s'`, `lock_timeout = '500ms'`, `default_transaction_read_only = on` | Read-only investigator diagnostics (`pg_stat_activity`, `EXPLAIN`, `card_holds` inspection, `schema_migrations` reads). |
 | `warroom-admin` | `sandbox_admin` | `2` | `connectionTimeoutMillis: 2000`, `statement_timeout = '5s'` | Idempotent Break-Glass mutations and Rollback Safety Checks. |
 
+## Sandbox card holds and telemetry
+
+`card-auth-sandbox` authorizes synthetic Visa and Mastercard traffic. A card number whose first digit is `4` is Visa and goes to `acquirer-alpha`. A number starting `51` to `55`, or `2221` to `2720`, is Mastercard and goes to `acquirer-beta`. Any other number is refused as `unsupported_bin` before any database or acquirer work. Each acquirer is an in-process simulation that answers after a base latency (`acquirer-alpha` 80 ms, `acquirer-beta` 120 ms) plus up to 40 ms of jitter plus a fault delay that defaults to 0. An amount whose cents end in `51` is declined; every other amount is approved.
+
+### `card_holds` table
+
+Migration `0002_card_holds.sql` creates one row per committed authorization. The full card number is never stored.
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `id` | `bigserial` | Primary key. |
+| `trace_id` | `uuid`, unique | The ID that telemetry and later receipts quote. |
+| `brand` | `text` | `visa` or `mastercard`. |
+| `acquirer` | `text` | `acquirer-alpha` or `acquirer-beta`. |
+| `bin` | `char(6)` | First 6 digits of the card number. |
+| `last4` | `char(4)` | Last 4 digits of the card number. |
+| `amount_cents` | `integer` | Positive amount in US cents. |
+| `status` | `text` | `PENDING`, `APPROVED`, `DECLINED`, or `ERROR`. |
+| `created_at` | `timestamptz` | Start of the authorization's transaction. |
+| `decided_at` | `timestamptz` | Null until the acquirer answers. |
+
+An authorization runs `BEGIN`, inserts the `PENDING` row, calls the acquirer, updates the status, and runs `COMMIT`, all on one `sandbox_app` pool connection. While the acquirer call is in progress the row is uncommitted: `pg_stat_activity` shows a `card-auth-sandbox` session `idle in transaction`, and a plain `SELECT` as `warroom_diag` does not see the row. If the acquirer or the status update fails, the transaction rolls back, so an `ERROR` authorization leaves no row and shows only in telemetry.
+
+Grants: `sandbox_app` has `SELECT, INSERT, UPDATE` on `card_holds` and `USAGE` on its sequence, `warroom_diag` has `SELECT`, and `sandbox_admin` has `SELECT, UPDATE`. No runtime role can `DELETE` or `TRUNCATE`.
+
+### Synthetic traffic
+
+The sandbox generates its own traffic when `TRAFFIC_RATE` is set to a whole number of authorizations per second (compose sets 5; unset or 0 generates none). Each tick authorizes a Luhn-valid test card number built from the BINs `411111`, `424242`, `555555`, `510510`, and `222300`, with an amount from 500 to 20,000 cents. While 50 authorizations are in flight the generator skips a tick and adds it to `dropped`.
+
+### Telemetry routes
+
+The routes are read-only, unauthenticated, and reachable only on the compose network. They answer from an in-process window of the last 300 seconds and at most 10,000 authorizations, and from the app pool's live counters. They never query PostgreSQL, so they keep answering when the app pool is saturated. The window resets when the sandbox restarts. The response shapes are TypeBox schemas in `packages/contracts/src/sandbox-telemetry.ts`.
+
+| Route | Query | Response |
+| :--- | :--- | :--- |
+| `GET /telemetry/acquirers` | `windowSec`, a whole number from 1 to 300, default 60 | `SandboxAcquirerTelemetry`: per acquirer, `approved`, `declined`, `errors`, `inFlight`, `oldestInFlightMs`, and `latencyMs` `{p50, p95, max}`, counting authorizations started in the window; plus `dropped`. A bad `windowSec` answers `400` `{"error":"invalid_window"}`. |
+| `GET /telemetry/authorizations` | `since` and `until` (required, ISO 8601 date, or date-time with `Z` or an offset, at most 3600 s apart), `acquirer`, `limit` (1 to 500, default 100) | `SandboxAuthorizationList`, newest first, with `traceId`, `bin`, `last4`, `status`, and `latencyMs`. Errors answer `400` with `invalid_range`, `invalid_acquirer`, or `invalid_limit`. |
+| `GET /telemetry/pool` | none | `SandboxPoolTelemetry`: `{max: 10, total, idle, waiting}`. |
+
+An authorization that began before the window is left out of the counts even while it is still in flight, so a stuck call older than `windowSec` needs a wider window to appear. `latencyMs` covers authorizations that reached a final status, and is `null` when none did. A slow acquirer shows in the fault delay set in process by tests (`setAcquirerDelay`); there is no HTTP route for it yet.
+
 ## Durable state schemas in `warroom-server`
 
 `warroom-server` persists state in SQLite through two `@earendil-works/pi-durable@1.4.0` document definitions.
