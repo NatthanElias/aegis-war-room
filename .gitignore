@@ -1,2 +1,41 @@
 .local/
 .specs/features/
+
+# Dependencies
+node_modules/
+
+# Build and test output
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+.vitest/
+
+# War room incident SQLite files (pi-durable), including WAL and shared-memory sidecars
+incidents/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+
+# Environment and secrets (the OpenRouter key lives here)
+.env
+.env.*
+!.env.example
+
+# Python caches from the skill scripts
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
