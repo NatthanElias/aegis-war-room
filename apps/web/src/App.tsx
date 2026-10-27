@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
-import { startShell } from "./shell-controller.ts";
+import { useEffect, useRef, useState } from "react";
+import { IncidentPanel } from "./IncidentPanel.tsx";
+import { type IncidentSnapshot, incidentPanel, initialIncident } from "./incident-view.ts";
+import { type ShellController, startShell } from "./shell-controller.ts";
 import { type ConnectionSnapshot, initialConnection, shellScreen } from "./shell-view.ts";
 
 function chordUrl(): string {
@@ -11,7 +13,13 @@ function chordUrl(): string {
 
 export function App() {
   const [snapshot, setSnapshot] = useState<ConnectionSnapshot>(initialConnection);
-  useEffect(() => startShell(chordUrl(), setSnapshot), []);
+  const [incident, setIncident] = useState<IncidentSnapshot>(initialIncident);
+  const controller = useRef<ShellController | undefined>(undefined);
+  useEffect(() => {
+    const started = startShell(chordUrl(), setSnapshot, setIncident);
+    controller.current = started;
+    return started.stop;
+  }, []);
   const screen = shellScreen(snapshot);
 
   return (
@@ -45,6 +53,11 @@ export function App() {
           <dd>{screen.state.sandbox}</dd>
         </dl>
       )}
+      <IncidentPanel
+        panel={incidentPanel(screen, incident)}
+        onSetPhase={(phase) => void controller.current?.setPhase(phase)}
+        onSetSev={(sev) => void controller.current?.setSev(sev)}
+      />
     </main>
   );
 }

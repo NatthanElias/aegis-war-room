@@ -7,6 +7,7 @@ export {
   PhaseSchema,
   type Roster,
   RosterSchema,
+  SEVERITIES,
   type Severity,
   SeveritySchema,
 } from "./incident.ts";

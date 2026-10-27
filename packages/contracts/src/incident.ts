@@ -26,6 +26,9 @@ export type Severity = Static<typeof SeveritySchema>;
 export type Phase = Static<typeof PhaseSchema>;
 export type Roster = Static<typeof RosterSchema>;
 
+/** The three severities, most severe first. */
+export const SEVERITIES: readonly Severity[] = ["SEV-1", "SEV-2", "SEV-3"];
+
 /** The five phases in transition-table order. */
 export const PHASES: readonly Phase[] = ["DETECT", "TRIAGE", "MITIGATE", "RESOLVE", "POSTMORTEM"];
 
