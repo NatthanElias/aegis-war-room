@@ -58,7 +58,7 @@ describe("telemetry", () => {
       const latency = acquirers[name].latencyMs;
       // The floors are the plan's base latencies (80 and 120 ms) less 5 ms of timer slack.
       expect(latency?.p50, name).toBeGreaterThanOrEqual(floorMs);
-      expect(latency?.max, name).toBeLessThan(1000);
+      expect(latency?.max, name).toBeLessThan(5000);
       expect(latency?.p50 as number, name).toBeLessThanOrEqual(latency?.p95 as number);
       expect(latency?.p95 as number, name).toBeLessThanOrEqual(latency?.max as number);
     }

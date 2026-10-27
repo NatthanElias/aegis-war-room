@@ -13,6 +13,10 @@ describe("slow acquirer", () => {
     const db = await harness.migratedDatabase();
     const sandbox = await harness.sandbox(db);
     sandbox.setAcquirerDelay("acquirer-beta", 2000);
+    // Why: opening a connection costs tens of milliseconds and varies under load. Opening the six the test
+    // needs first keeps the acquirer-alpha percentile about the acquirer path, not about connection setup.
+    const warm = await Promise.all(Array.from({ length: 6 }, () => sandbox.pool.connect()));
+    for (const client of warm) client.release();
 
     await Promise.all([
       ...[1000, 2000, 3000].map((cents) => sandbox.authorize(VISA, cents)),
