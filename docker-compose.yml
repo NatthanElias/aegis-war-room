@@ -1,0 +1,71 @@
+name: warroom
+
+x-node: &node
+  build: .
+  image: warroom-node
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: warroom
+      POSTGRES_DB: warroom
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d warroom"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: applies the SQL migrations as the superuser before any service starts.
+  migrate:
+    <<: *node
+    command: ["node", "apps/card-auth-sandbox/src/migrate.ts"]
+    environment:
+      DATABASE_URL: postgres://postgres:warroom@postgres:5432/warroom
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  card-auth-sandbox:
+    <<: *node
+    command: ["node", "apps/card-auth-sandbox/src/main.ts"]
+    environment:
+      PORT: "4000"
+      DATABASE_URL: postgres://sandbox_app:sandbox_app@postgres:5432/warroom
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:4000/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  warroom-server:
+    <<: *node
+    command: ["node", "apps/warroom-server/src/main.ts"]
+    environment:
+      PORT: "3000"
+      INCIDENT_ID: demo
+      INCIDENTS_DIR: /app/incidents
+      DATABASE_URL: postgres://warroom_diag:warroom_diag@postgres:5432/warroom
+      SANDBOX_URL: http://card-auth-sandbox:4000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:${WARROOM_PORT:-8080}:3000"
+    volumes:
+      - incidents:/app/incidents
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/healthz"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:
+  incidents:
