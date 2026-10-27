@@ -1,7 +1,7 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
-import { acceptWebSockets, createHost } from "@earendil-works/chord";
+import { acceptWebSockets, createHost, type Host } from "@earendil-works/chord";
 import {
   type Principal,
   principalKey,
@@ -11,6 +11,7 @@ import {
 import { WebSocketServer } from "ws";
 import { monitorDatabase } from "./database-monitor.ts";
 import { createDiagPool } from "./diag-pool.ts";
+import { serveIncident, serveIncidentMirror } from "./incident.ts";
 import { openIncidentStore } from "./incident-store.ts";
 import { probeSandbox, serveRuntime } from "./runtime.ts";
 import { serveShell } from "./shell.ts";
@@ -35,6 +36,8 @@ export interface RunningServer {
   readonly port: number;
   readonly incidentId: string;
   readonly conversationId: number;
+  /** The Chord host, so tests can act as the server's own principal. */
+  readonly chord: Host<Principal>;
   close(): Promise<void>;
 }
 
@@ -54,6 +57,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     initialSandbox: await probeSandbox(options.sandboxUrl, new AbortController().signal),
   });
   serveShell(chord);
+  serveIncidentMirror(chord, await store.watchIncident());
+  serveIncident(chord, store);
   await chord.ready();
 
   const webDist = options.webDist ?? DEFAULT_WEB_DIST;
@@ -94,6 +99,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     port: (server.address() as AddressInfo).port,
     incidentId: options.incidentId,
     conversationId: store.conversationId,
+    chord,
     async close() {
       monitor?.stop();
       for (const client of wss.clients) client.terminate();

@@ -1,4 +1,16 @@
 export {
+  Incident,
+  type IncidentState,
+  PHASE_TRANSITIONS,
+  PHASES,
+  type Phase,
+  PhaseSchema,
+  type Roster,
+  RosterSchema,
+  type Severity,
+  SeveritySchema,
+} from "./incident.ts";
+export {
   type Principal,
   principalKey,
   type Role,
@@ -19,7 +31,10 @@ export {
 export { SandboxStatusSchema, Shell, type ShellState, ShellUserSchema } from "./shell.ts";
 export {
   connectShell,
+  connectWarroom,
   type ShellCallbacks,
   type ShellClose,
   type ShellConnection,
+  type WarroomCallbacks,
+  type WarroomConnection,
 } from "./shell-client.ts";
