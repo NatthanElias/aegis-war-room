@@ -4,6 +4,7 @@ import type { Pool } from "pg";
 import { type Acquirers, createAcquirers } from "./acquirers.ts";
 import { createAppPool } from "./app-pool.ts";
 import { type Authorization, authorize } from "./authorize.ts";
+import { type ChaosControl, startChaosControl } from "./chaos.ts";
 import { monitorDatabase } from "./database-monitor.ts";
 import type { AcquirerName } from "./routing.ts";
 import { createTelemetry } from "./telemetry.ts";
@@ -18,14 +19,18 @@ export interface SandboxOptions {
   readonly acquirers?: Acquirers;
   /** Synthetic authorizations per second; 0 or unset generates none. */
   readonly trafficRate?: number;
+  /** Port of the loopback-only chaos control listener; unset starts none, 0 picks a free port. */
+  readonly chaosPort?: number;
 }
 
 export interface RunningSandbox {
   readonly port: number;
+  /** The control listener's port, or undefined when `chaosPort` was not set. */
+  readonly chaosPort: number | undefined;
   /** The app pool, exposed so tests can read its counters. */
   readonly pool: Pool;
   authorize(pan: string, amountCents: number): Promise<Authorization>;
-  /** In-process fault: adds `ms` to every later call of `acquirer`. There is no HTTP route for it (US-03). */
+  /** In-process fault: adds `ms` to every later call of `acquirer`. The public port has no route for it (US-03). */
   setAcquirerDelay(acquirer: AcquirerName, ms: number): void;
   close(): Promise<void>;
 }
@@ -41,8 +46,17 @@ function requestUrl(target: string | undefined): URL {
 
 export async function startSandbox(options: SandboxOptions): Promise<RunningSandbox> {
   const pool = createAppPool(options.databaseUrl);
-  const monitor = monitorDatabase(pool);
   const acquirers = options.acquirers ?? createAcquirers();
+  let chaos: ChaosControl | undefined;
+  if (options.chaosPort !== undefined) {
+    try {
+      chaos = await startChaosControl(options.chaosPort, acquirers);
+    } catch (error) {
+      await pool.end();
+      throw error;
+    }
+  }
+  const monitor = monitorDatabase(pool);
   const telemetry = createTelemetry();
   const shutdown = new AbortController();
   const context = { pool, acquirers, telemetry, signal: shutdown.signal };
@@ -72,6 +86,7 @@ export async function startSandbox(options: SandboxOptions): Promise<RunningSand
 
   return {
     port: (server.address() as AddressInfo).port,
+    chaosPort: chaos?.port,
     pool,
     authorize: (pan, amountCents) => authorize(context, { pan, amountCents }),
     setAcquirerDelay: (acquirer, ms) => acquirers.setDelay(acquirer, ms),
@@ -82,6 +97,7 @@ export async function startSandbox(options: SandboxOptions): Promise<RunningSand
       shutdown.abort();
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
+      await chaos?.close();
       await pool.end();
     },
   };

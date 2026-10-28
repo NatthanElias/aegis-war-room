@@ -35,6 +35,8 @@ services:
     environment:
       PORT: "4000"
       TRAFFIC_RATE: "5"
+      # Context: loopback-only fault control for `npm run chaos`; compose does not publish this port.
+      CHAOS_PORT: "4001"
       DATABASE_URL: postgres://sandbox_app:sandbox_app@postgres:5432/warroom
     depends_on:
       migrate:
