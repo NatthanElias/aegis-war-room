@@ -9,7 +9,7 @@ The system runs two Node.js TypeScript processes and one PostgreSQL 17 container
 | Service | Backing state | Responsibilities |
 | :--- | :--- | :--- |
 | `postgres` (`postgres:17-alpine`) | Docker volume | Stores `card_holds`, `schema_migrations`, `break_glass_idempotency`, and live lock and session metadata in `pg_stat_activity`. |
-| `card-auth-sandbox` | Stateless Node.js HTTP server over PostgreSQL | Runs synthetic card traffic, Visa and Mastercard BIN routing, `acquirer-alpha` and `acquirer-beta` gateway calls, chaos fault flags, read-only telemetry endpoints, and idempotent remediation endpoints. |
+| `card-auth-sandbox` | Stateless Node.js HTTP server over PostgreSQL | Runs synthetic card traffic, Visa and Mastercard BIN routing, `acquirer-alpha` and `acquirer-beta` gateway calls, scenario-based chaos faults set through a loopback-only control listener, read-only telemetry endpoints, and idempotent remediation endpoints. |
 | `warroom-server` | `incidents/<incidentId>.db` SQLite file | Sole owner of the `pi-durable` session database. Runs the Coordinator conversation, background investigator tasks, `Codemode` QuickJS sandboxes, `Jev` classifier gates, Chord WebSocket server, and static frontend assets. |
 
 ### Open agentic file layout
@@ -69,7 +69,7 @@ The routes are read-only, unauthenticated, and reachable only on the compose net
 | `GET /telemetry/authorizations` | `since` and `until` (required, ISO 8601 date, or date-time with `Z` or an offset, at most 3600 s apart), `acquirer`, `limit` (1 to 500, default 100) | `SandboxAuthorizationList`, newest first, with `traceId`, `bin`, `last4`, `status`, and `latencyMs`. Errors answer `400` with `invalid_range`, `invalid_acquirer`, or `invalid_limit`. |
 | `GET /telemetry/pool` | none | `SandboxPoolTelemetry`: `{max: 10, total, idle, waiting}`. |
 
-An authorization that began before the window is left out of the counts even while it is still in flight, so a stuck call older than `windowSec` needs a wider window to appear. `latencyMs` covers authorizations that reached a final status, and is `null` when none did. A slow acquirer shows in the fault delay set in process by tests (`setAcquirerDelay`); there is no HTTP route for it yet.
+An authorization that began before the window is left out of the counts even while it is still in flight, so a stuck call older than `windowSec` needs a wider window to appear. `latencyMs` covers authorizations that reached a final status, and is `null` when none did. A slow acquirer shows in the fault delay that tests set in process (`setAcquirerDelay`) or that the presenter sets through the chaos control listener (see Fault scenarios). The public port has no route for it.
 
 ## Durable state schemas in `warroom-server`
 
@@ -167,14 +167,14 @@ Clients connect via `acceptWebSockets(wss, host, { principal })`, which `@earend
 | Post human chat (`submit({ type: "write" })`) and `@coordinator` prompts | Allowed | Allowed | Denied |
 | Create hypotheses and run `Investigate`, `Steer`, or `Stop` | Allowed | Allowed | Denied |
 | Submit human-attested answers to `missingEvidence` (`askOf`) | Allowed | Allowed | Denied |
-| Toggle `Inject Chaos` and `Semantic Injection Guard` | Allowed | Allowed | Denied |
+| Toggle `Semantic Injection Guard` | Allowed | Allowed | Denied |
 | Set `sev`, transition `phase`, and publish Stakeholder Updates | Allowed | Denied | Denied |
 | Sign Break-Glass Key 1 (`Maker`, commits `sha256(canonicalJSON(action, args))`) | Denied | Allowed | Denied |
 | Sign Break-Glass Key 2 (`Checker`, requires `checkerId !== makerId`, hash match, `phase === "MITIGATE"`) | Allowed | Denied | Denied |
 
 ## Split-screen UI layout
 
-- **Top bar:** Severity selector, 5-phase stepper, live **Card TPV Bleed ($/min)** vs. **Agent Token Spend ($)** from `harness.usage()`, **Semantic Injection Guard** toggle, seeded user switcher (`Alice`, `Bob`, `Carol`), and **Inject Chaos** menu.
+- **Top bar:** Severity selector, 5-phase stepper, live **Card TPV Bleed ($/min)** vs. **Agent Token Spend ($)** from `harness.usage()`, **Semantic Injection Guard** toggle, and seeded user switcher (`Alice`, `Bob`, `Carol`). The top bar has no chaos control: the presenter starts faults from a terminal (see Fault scenarios).
 - **Left 50% (War-room chat):** Multiplayer chat stream rendering human messages, Coordinator responses, and `subagent.report` milestones. Regex parser converts `[H1]`, `[EV-01]`, and `[BG-01]` references into clickable chips that focus the target card in the right pane.
 - **Right 50% (4-tab workbench):**
   - **Hypotheses:** Active, ruled-out, and confirmed cards, live subagent status, **Investigate**, **Steer**, and **Stop** actions, and `missingEvidence` items with inline human-attestation inputs.
@@ -186,9 +186,20 @@ Clients connect via `acceptWebSockets(wss, host, { principal })`, which `@earend
 
 ### Fault scenarios
 
-1. **Scenario A (Cascade decoy):** Injects an 8,000 ms delay on `acquirer-beta` inside an open database transaction, saturating `card-auth-sandbox`'s 10-connection pool so database saturation acts as a decoy symptom.
+1. **Scenario A (Cascade decoy):** Injects an 8,000 ms delay on `acquirer-beta` inside an open database transaction, saturating `card-auth-sandbox`'s 10-connection pool so database saturation acts as a decoy symptom. The presenter starts it with `npm run chaos -- cascade-decoy`, ends it with `npm run chaos -- clear`, and reads it with `npm run chaos -- status`.
 2. **Scenario B (Bad BIN config rollout):** Pushes a faulty Mastercard BIN routing configuration that spikes gateway declines and exercises Rollback Safety and Two-Key rollback.
 3. **Overlay I (Webhook prompt injection and PAN leak):** Injects Luhn-valid test PANs (`4111...`), keyed CVVs, invisible Unicode Tags, and plain-English override instructions inside external webhook bodies.
+
+### Chaos control
+
+Chaos belongs to the presenter, not to the war room team (D-08). The sandbox starts a second HTTP listener only when `CHAOS_PORT` is set (compose sets `4001`), bound to `127.0.0.1` and not published to the host. The root script `npm run chaos` runs `apps/card-auth-sandbox/src/chaos-cli.ts` inside the sandbox container with `docker compose exec`, which reaches that loopback port. `warroom-server` cannot reach it, and no contract, Chord object, agent tool, or screen carries chaos state.
+
+| Route on the control listener | Body | Answer |
+| :--- | :--- | :--- |
+| `PUT /chaos/scenario` | `{"scenario":"cascade-decoy"}` or `{"scenario":"none"}` | `200` with the scenario now set; `400` `{"error":"invalid_scenario"}` for any other body. |
+| `GET /chaos/scenario` | none | `200` with the current scenario. |
+
+Any other method or path answers `404`. The scenario lives in the sandbox process and starts at `none`, so restarting the sandbox ends the fault. `cascade-decoy` sets the `acquirer-beta` delay to 8,000 ms for calls that start afterwards, and `none` sets it back to 0; calls already waiting keep their delay. While the pool is saturated the sandbox `/healthz` answers `503`, because its ping waits for a pool connection, so the war room shell shows the sandbox `down`.
 
 ### Automated test invariants
 

@@ -46,19 +46,19 @@ Scenario: Acquirer slow to answer
 
 Front: War room. Priority: Must. Feature: `chaos-cascade-decoy`.
 
-As a Responder, I want to inject Scenario A, so that the audience sees a database pool saturation that is only a symptom.
+As the presenter, I want to start Scenario A with a terminal command, so that the audience sees a database pool saturation that is only a symptom, and the war room finds the cause from its symptoms.
 
 ```gherkin
 Scenario: Decoy fault
   Given healthy traffic
-  When Bob selects Scenario A from the Inject Chaos menu
+  When the presenter runs `npm run chaos -- cascade-decoy`
   Then acquirer-beta calls take 8 seconds inside open transactions
   And the sandbox application pool reaches 10 of 10 connections
 
-Scenario: Observer tries to inject
-  Given Carol is signed in as Observer
-  When Carol opens the Inject Chaos menu
-  Then the action is denied
+Scenario: War room cannot reach chaos
+  Given the compose stack is running
+  When warroom-server connects to the chaos port of card-auth-sandbox
+  Then the connection is refused
 ```
 
 ### US-04 Share one incident state across responders
@@ -238,12 +238,12 @@ Scenario: Live meter
 
 Front: War room. Priority: Should. Feature: `chaos-bad-bin`.
 
-As a Responder, I want to inject Scenario B, so that the audience sees a rollback-shaped incident next to the decoy.
+As the presenter, I want to start Scenario B with the same chaos command as Scenario A, so that the audience sees a rollback-shaped incident next to the decoy.
 
 ```gherkin
 Scenario: Faulty rollout
   Given healthy traffic
-  When Bob selects Scenario B
+  When the presenter starts Scenario B with `npm run chaos`
   Then Mastercard authorizations route wrongly and gateway declines spike
 ```
 
