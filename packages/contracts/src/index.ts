@@ -12,6 +12,21 @@ export {
   SeveritySchema,
 } from "./incident.ts";
 export {
+  type Evidence,
+  EvidenceIdSchema,
+  EvidenceSchema,
+  type Hypothesis,
+  HypothesisIdSchema,
+  HypothesisSchema,
+  type InvestigationFinding,
+  InvestigationFindingSchema,
+  type InvestigationRequest,
+  InvestigationRequestSchema,
+  SPECIALISTS,
+  type Specialist,
+  SpecialistSchema,
+} from "./investigation.ts";
+export {
   type Principal,
   principalKey,
   type Role,
