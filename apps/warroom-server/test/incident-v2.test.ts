@@ -93,7 +93,7 @@ describe("app.warroom version 2", () => {
       doc.sev = "SEV-2";
       doc.phase = "TRIAGE";
     }, BACKGROUND_CONTEXT);
-    // Prerequisite: the file now holds a version 1 value with no version 2 field.
+    // Context: the file now holds a version 1 value with no version 2 field.
     expect(await harness.snapshot(VersionOne, BACKGROUND_CONTEXT)).toEqual({
       sev: "SEV-2",
       phase: "TRIAGE",
@@ -167,7 +167,7 @@ describe("app.warroom version 2", () => {
       .map(([name]) => name)
       .sort();
     expect(declared).toEqual(["phase", "roster", "sev"]);
-    // Prerequisite: the served document really holds the version 2 fields the browser must not see.
+    // Context: the served document really holds the version 2 fields the browser must not see.
     running = false;
     await server.close();
     const stored = await incidents.read();

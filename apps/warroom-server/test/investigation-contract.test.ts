@@ -105,5 +105,61 @@ describe("investigation contract", () => {
     expect(Value.Check(HypothesisSchema, hypothesis)).toBe(true);
     const accepted = invalid.filter(([, schema, value]) => Value.Check(schema, value));
     expect(accepted.map(([name]) => name)).toEqual([]);
+
+    const invalidBoundaries: Array<[string, TSchema, unknown]> = [
+      ["request non-ISO since", InvestigationRequestSchema, { ...request, since: "yesterday" }],
+      ["request non-ISO until", InvestigationRequestSchema, { ...request, until: "tomorrow" }],
+      ["hypothesis non-ISO createdAt", HypothesisSchema, { ...hypothesis, createdAt: "today" }],
+      ["evidence non-ISO createdAt", EvidenceSchema, { ...receiptEvidence, createdAt: "today" }],
+      [
+        "receipt source extra property",
+        EvidenceSchema,
+        {
+          ...receiptEvidence,
+          source: { ...receiptEvidence.source, foo: 1 },
+        },
+      ],
+      [
+        "human source extra property",
+        EvidenceSchema,
+        {
+          ...humanEvidence,
+          source: { ...humanEvidence.source, foo: 1 },
+        },
+      ],
+      [
+        "receipt source human attribution",
+        EvidenceSchema,
+        {
+          ...receiptEvidence,
+          source: { ...receiptEvidence.source, userId: "bob", role: "Responder" },
+        },
+      ],
+      [
+        "human source receipt attribution",
+        EvidenceSchema,
+        {
+          ...humanEvidence,
+          source: { ...humanEvidence.source, receiptIds: ["call-7"] },
+        },
+      ],
+      ["hypothesis extra property", HypothesisSchema, { ...hypothesis, foo: 1 }],
+      ["evidence extra property", EvidenceSchema, { ...receiptEvidence, foo: 1 }],
+      ["finding extra property", InvestigationFindingSchema, { ...finding, foo: 1 }],
+      [
+        "missing evidence extra property",
+        HypothesisSchema,
+        {
+          ...hypothesis,
+          missingEvidence: [{ id: "M1", need: "Deploy history", foo: 1 }],
+        },
+      ],
+    ];
+    expect(invalidBoundaries).toHaveLength(12);
+    expect(Value.Check(EvidenceSchema, receiptEvidence)).toBe(true);
+    expect(Value.Check(EvidenceSchema, humanEvidence)).toBe(true);
+    for (const [name, schema, value] of invalidBoundaries) {
+      expect(Value.Check(schema, value), name).toBe(false);
+    }
   });
 });
