@@ -80,10 +80,6 @@ The schedule rests on these assumptions:
 
 - Sizes become working days: S takes 1 day, M takes 2, and L takes 3. This is an AI-assisted pace. At the standard pace of 1, 3, and 5 days, the Musts alone would run past the deadline.
 - The chart skips weekends. The team works every weekday, holidays included.
-- The orange bars are the critical path of the Musts. The chain ends on 2026-11-23, which leaves 7 working days of slack before the demo, and the Shoulds fill those days. Blue bars are the other tasks, green bars are running, and gray bars are done.
-- The colors come from the Okabe-Ito palette, which color-blind readers can tell apart. Text outside the bars is mid-gray, readable on both light and dark backgrounds.
-- Staffing changes: None.
-- Derived tasks: None.
 - The extras run in reverse cut order, so the last feature to cut is built first. Under this plan, the work through `chaos-bad-bin` ends on 2026-12-01. Everything from `rollback-safety` on falls on or after the demo day, and it ships only if the Musts finish early.
 - No Must waits for a Could, so cutting `steer-stop` frees no Must date. It shortens the tail of the extras.
 - One developer means no parallel slack. A one-day slip in any Must moves every later bar by one day.
