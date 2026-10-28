@@ -104,7 +104,7 @@ describe("cascade decoy with synthetic traffic", () => {
     const db = await harness.migratedDatabase();
     const diag = await harness.client(db.roleUrl("warroom_diag"));
     const sandbox = await harness.sandbox(db, { trafficRate: 5, chaosPort: 0 });
-    // Let the generator run on a healthy pool first, so the fault is the only change.
+    // Why: a healthy baseline makes the injected fault the only change before saturation.
     await sleep(500);
     const startedAt = performance.now();
     await setScenario(sandbox.chaosPort, "cascade-decoy");
@@ -157,7 +157,7 @@ describe("cascade decoy with synthetic traffic", () => {
     expect(poolAnswer.ms).toBeLessThan(500);
     expect(acquirersAnswer.status).toBe(200);
     expect(acquirersAnswer.ms).toBeLessThan(500);
-    // The answers must come from a pool that is still saturated, not from one that has already drained.
+    // Why: measuring after the pool drains would not prove telemetry works during saturation.
     const pool = poolAnswer.body as SandboxPoolTelemetry;
     expect(pool.idle).toBe(0);
     expect(pool.waiting).toBeGreaterThanOrEqual(1);

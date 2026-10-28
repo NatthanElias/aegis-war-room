@@ -1,4 +1,4 @@
-// The presenter command behind `npm run chaos`. It runs inside the sandbox container, where the loopback
+// Context: `npm run chaos` runs in the sandbox container, where its loopback
 // control listener is reachable (chaos-presenter-only).
 import {
   type ChaosScenario,

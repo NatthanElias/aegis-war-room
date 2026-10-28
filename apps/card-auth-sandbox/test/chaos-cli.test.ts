@@ -142,7 +142,7 @@ describe("chaos presenter command", () => {
     }
     expect(spy.connections()).toBe(0);
 
-    // The spy must see a real request, or "no connection" above would prove nothing.
+    // Why: the spy must see a real request for the earlier no-connection assertion to prove anything.
     await runCli(["status"], spy.port);
     expect(spy.connections()).toBe(1);
   });
@@ -164,7 +164,7 @@ describe("chaos presenter command", () => {
       stderr: `chaos: cannot reach the sandbox control port at 127.0.0.1:${silent.port}\n`,
     });
     expect(hung.ms).toBeLessThan(3000);
-    // The listener must have accepted the connection, so the exit above is the timeout and not a refusal.
+    // Why: an accepted connection proves the exit above came from the timeout, not a refusal.
     expect(silent.connections()).toBeGreaterThanOrEqual(1);
   });
 });

@@ -151,10 +151,10 @@ describe("chaos control", () => {
     const external = Object.values(networkInterfaces())
       .flat()
       .find((address) => address?.family === "IPv4" && !address.internal)?.address;
-    // A host with no non-loopback IPv4 address cannot show the difference, so it fails rather than passes.
+    // Why: without a non-loopback IPv4 address, this test cannot prove the control listener is private.
     expect(external, "a non-loopback IPv4 address on this host").toBeTypeOf("string");
 
-    // The public listener is bound to 0.0.0.0, so this address reaches it; that rules out a host that refuses everything.
+    // Why: the public listener must answer on this address to rule out a host that refuses all external traffic.
     const publicHealth = await fetch(`http://${external}:${sandbox.port}/healthz`);
     expect(publicHealth.status === 200 || publicHealth.status === 503).toBe(true);
     await expect(fetch(`http://${external}:${sandbox.chaosPort}/chaos/scenario`)).rejects.toThrow();
