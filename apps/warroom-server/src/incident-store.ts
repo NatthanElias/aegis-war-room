@@ -2,14 +2,35 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type { Draft } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { createRegistry, type DocumentWatch, defineDoc, Harness } from "@earendil-works/pi-durable";
+import { createModels, type Models } from "@earendil-works/pi-ai/models";
+import {
+  createRegistry,
+  type DocumentWatch,
+  defineDoc,
+  Harness,
+  type Registry,
+} from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
-import { type Phase, type Roster, SEEDED_USERS, type Severity } from "@warroom/contracts";
+import {
+  type Evidence,
+  type Hypothesis,
+  type Phase,
+  type Roster,
+  SEEDED_USERS,
+  type Severity,
+} from "@warroom/contracts";
 
-/** The stored value of `app.warroom` version 1. */
+/** The stored value of `app.warroom` version 2. */
 // Context: a type alias, not an interface, because pi-durable documents must be assignable to `JsonObject`.
-export type IncidentDoc = { sev: Severity; phase: Phase; roster: Roster };
+export type IncidentDoc = {
+  sev: Severity;
+  phase: Phase;
+  roster: Roster;
+  /** Keyed by hypothesis ID (`H1`, `H2`, ...). */
+  hypotheses: Record<string, Hypothesis>;
+  /** Keyed by evidence ID (`EV-01`, `EV-02`, ...); a record is never changed once written. */
+  evidence: Record<string, Evidence>;
+};
 
 /** Why: a complete base after 49 deltas gives "checkpointed every 50 operations" and bounds replay on open. */
 const DELTAS_PER_CHECKPOINT = 49;
@@ -20,7 +41,7 @@ const DELTAS_PER_CHECKPOINT = 49;
  */
 export const AppWarroom = defineDoc<IncidentDoc>({
   kind: "app.warroom",
-  version: 1,
+  version: 2,
   scope: "session",
   initial: () => ({
     sev: "SEV-1",
@@ -30,7 +51,20 @@ export const AppWarroom = defineDoc<IncidentDoc>({
       bob: { ...SEEDED_USERS.bob },
       carol: { ...SEEDED_USERS.carol },
     },
+    hypotheses: {},
+    evidence: {},
   }),
+  // Hazard: a stored version 2 cannot be read by version 1 code, so a later bump must keep this chain
+  // working for every older file, including the demo volume's version 1 incident.
+  migrate: (value, fromVersion) => {
+    if (fromVersion !== 1)
+      throw new Error(`app.warroom cannot migrate from version ${fromVersion}`);
+    return {
+      ...(value as Omit<IncidentDoc, "hypotheses" | "evidence">),
+      hypotheses: {},
+      evidence: {},
+    };
+  },
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= DELTAS_PER_CHECKPOINT,
 });
 
@@ -49,14 +83,21 @@ export interface IncidentStore {
   close(): Promise<void>;
 }
 
+/** What the Harness runs agents with. */
+export interface IncidentAgents {
+  readonly registry?: Registry;
+  readonly models?: Models;
+}
+
 /**
  * Opens (or creates) `{incidentsDir}/{incidentId}.db` and its root conversation.
  * Context: one SQLite file per incident ID; the same ID reopens the same file and the same root conversation.
- * The Harness opens with an empty `createModels()` because the skeleton makes no model calls.
+ * Without `agents` the Harness opens with an empty registry and an empty `createModels()`, which makes no model calls.
  */
 export async function openIncidentStore(
   incidentsDir: string,
   incidentId: string,
+  agents: IncidentAgents = {},
 ): Promise<IncidentStore> {
   // Hazard: the incident ID becomes a file name, so path separators or dots would escape the incidents folder.
   if (!/^[A-Za-z0-9_-]+$/.test(incidentId)) {
@@ -69,7 +110,7 @@ export async function openIncidentStore(
   const storage = await openNodeSqliteStorage(file);
   const harness = await Harness.open(
     storage,
-    { models: createModels(), registry: createRegistry() },
+    { models: agents.models ?? createModels(), registry: agents.registry ?? createRegistry() },
     BACKGROUND_CONTEXT,
   );
   const root = await harness.root(BACKGROUND_CONTEXT);
