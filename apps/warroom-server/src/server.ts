@@ -2,6 +2,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { acceptWebSockets, createHost, type Host } from "@earendil-works/chord";
+import type { Models } from "@earendil-works/pi-ai/models";
+import type { Registry } from "@earendil-works/pi-durable";
 import {
   type Principal,
   principalKey,
@@ -9,6 +11,7 @@ import {
   SERVER_PRINCIPAL,
 } from "@warroom/contracts";
 import { WebSocketServer } from "ws";
+import { createAgentRegistry } from "./agents/index.ts";
 import { monitorDatabase } from "./database-monitor.ts";
 import { createDiagPool } from "./diag-pool.ts";
 import { serveIncident, serveIncidentMirror } from "./incident.ts";
@@ -30,6 +33,8 @@ export interface ServerOptions {
   readonly webDist?: string;
   /** The `warroom_diag` URL. Tests that need no database leave it out and `/healthz` then reports ok. */
   readonly databaseUrl?: string;
+  /** Replaces the default agent registry and model catalog; without it the two stub agents run with no model provider. */
+  readonly agents?: { readonly registry?: Registry; readonly models?: Models };
 }
 
 export interface RunningServer {
@@ -44,7 +49,10 @@ export interface RunningServer {
 const DEFAULT_WEB_DIST = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
-  const store = await openIncidentStore(options.incidentsDir, options.incidentId);
+  const store = await openIncidentStore(options.incidentsDir, options.incidentId, {
+    registry: options.agents?.registry ?? createAgentRegistry(),
+    models: options.agents?.models,
+  });
   const pool = options.databaseUrl ? createDiagPool(options.databaseUrl) : undefined;
   const monitor = pool ? monitorDatabase(pool) : undefined;
 
