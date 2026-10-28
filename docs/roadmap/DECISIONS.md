@@ -23,6 +23,12 @@ Phase 01 kickoff, agreed by Natthan:
 - D-06 🟢 **[CHOICE]** IN THE CONTEXT OF *holidays before the deadline*, WE CHOSE *to work every weekday, holidays included* TO ACHIEVE *28 working days until the defense*.
 - D-07 🟢 **[CHOICE]** IN THE CONTEXT OF *keeping the PoC local and reproducible*, WE CHOSE *to leave out conversation fork, intent.md, real authentication, real acquirers, and cloud deployment* TO ACHIEVE *a one-command startup with docker compose*.
 
+### 2026-10-27
+
+chaos-cascade-decoy plan, agreed by Natthan:
+
+- D-08 🟢 **[CHOICE]** IN THE CONTEXT OF *starting the demo's outages*, WE CHOSE *a presenter command, `npm run chaos`, with no chaos menu in the war room* TO ACHIEVE *an incident the war room finds only from its symptoms*, ACCEPTING *that the presenter needs a terminal next to the browsers*.
+
 ## Replaced
 
 None yet.
