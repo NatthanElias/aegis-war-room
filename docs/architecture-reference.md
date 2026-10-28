@@ -16,8 +16,8 @@ The system runs two Node.js TypeScript processes and one PostgreSQL 17 container
 
 Repository agent artifacts use vendor-neutral file paths:
 
-- `AGENTS.md`: Root operational rules, epistemic constraints, and citation rules for the Coordinator and investigators.
-- `skills/logs/SKILL.md`, `skills/db/SKILL.md`, `skills/deploy/SKILL.md`, and `skills/acquirer/SKILL.md`: Domain investigation playbooks and `Codemode` script templates.
+- `apps/warroom-server/agent/AGENTS.md`: Operational rules, epistemic constraints, and citation rules for the Coordinator and investigators, under the headings `Evidence rules` and `Citation rules`. It lives in the `warroom-server` folder because the repository root `AGENTS.md` is the workspace guide for coding agents.
+- `apps/warroom-server/agent/skills/logs/SKILL.md`, `apps/warroom-server/agent/skills/db/SKILL.md`, `apps/warroom-server/agent/skills/deploy/SKILL.md`, and `apps/warroom-server/agent/skills/acquirer/SKILL.md`: Domain investigation playbooks and `Codemode` script templates, one folder per `SPECIALISTS` row. Each `SKILL.md` starts with frontmatter whose `name` is the folder name.
 - `REMEDIATION_SPEC.md`: Post-incident engineering specification exported during the `POSTMORTEM` phase.
 
 ## PostgreSQL connection pools
@@ -77,9 +77,11 @@ An authorization that began before the window is left out of the counts even whi
 
 ### Session singleton: `app.warroom`
 
-Defined with `defineDoc({ kind: "app.warroom", version: 1, scope: "session", initial, checkpointWhen })` in `apps/warroom-server/src/incident-store.ts`. `checkpointWhen` stores a complete base once 49 deltas follow the newest base, which gives "checkpointed every 50 operations". A new incident starts at `SEV-1` and `DETECT` with the seeded roster.
+Defined with `defineDoc({ kind: "app.warroom", version: 2, scope: "session", initial, migrate, checkpointWhen })` in `apps/warroom-server/src/incident-store.ts`. `checkpointWhen` stores a complete base once 49 deltas follow the newest base, which gives "checkpointed every 50 operations". A new incident starts at `SEV-1` and `DETECT` with the seeded roster and empty `hypotheses` and `evidence` records.
 
-Version 1 holds only `sev`, `phase`, and `roster`. The other rows of the table are added by the features that need them, each with a version bump and a `migrate` function.
+The document is at version 2. Version 2 holds `sev`, `phase`, `roster`, `hypotheses`, and `evidence`. The `migrate` function reads a stored version 1 value, keeps its `sev`, `phase`, and `roster`, and adds the two empty records, so an incident file written before version 2 opens unchanged in meaning. A version 2 file cannot be read by version 1 code. The other rows of the table are added by the features that need them, each with a version bump and a `migrate` function.
+
+The `Hypothesis`, `Evidence`, `InvestigationRequest`, and `InvestigationFinding` shapes are TypeBox schemas in `packages/contracts/src/investigation.ts`, with the `SPECIALISTS` table (`logs`, `db`, `deploy`, `acquirer`).
 
 
 | Field | Type | Description |
@@ -87,8 +89,8 @@ Version 1 holds only `sev`, `phase`, and `roster`. The other rows of the table a
 | `sev` | `"SEV-1" \| "SEV-2" \| "SEV-3"` | Current incident severity. |
 | `phase` | `"DETECT" \| "TRIAGE" \| "MITIGATE" \| "RESOLVE" \| "POSTMORTEM"` | Current phase governed by `PHASE_TRANSITIONS` in `packages/contracts/src/incident.ts`. |
 | `semanticGuardEnabled` | `boolean` | Controls whether `Jev` Spot C screens external webhook bodies. |
-| `hypotheses` | `Record<string, Hypothesis>` | Keyed by `H1`, `H2`, and so on. States: `"active" \| "ruled_out" \| "confirmed"`. Tracks `supportingEvidenceIds`, `contradictingEvidenceIds`, and `missingEvidence` (`{ id, need, askOf? }`). |
-| `evidence` | `Record<string, EvidenceEntry>` | Immutable `EV-*` facts containing `observation`, `quote`, `source` (`{ kind: "receipt", receiptIds }` or `{ kind: "human", userId, role }`), and `createdAt`. |
+| `hypotheses` | `Record<string, Hypothesis>` | Keyed by `H1`, `H2`, and so on (version 2). States: `"active" \| "ruled_out" \| "confirmed"`. Tracks `title`, `supportingEvidenceIds`, `contradictingEvidenceIds`, `missingEvidence` (`{ id, need, askOf? }`), and `createdAt`. |
+| `evidence` | `Record<string, EvidenceEntry>` | Keyed by `EV-01`, `EV-02`, and so on (version 2). Immutable `EV-*` facts containing `hypothesisId`, `observation`, `quote`, `source` (`{ kind: "receipt", receiptIds }` or `{ kind: "human", userId, role }`), and `createdAt`. |
 | `rejected` | `RejectedEvidence[]` | Audit log of submissions rejected by the receipt check, causal regex, or `Jev` Spot A (`reason: "missing_receipt" \| "quote_mismatch" \| "causal_speculation" \| "guard_unavailable"`). |
 | `proposals` | `Record<string, BreakGlassProposal>` | Drafted, Maker-signed, Checker-approved, and executed Break-Glass records (`BG-*`), including `payloadHash` and `rollbackSafety`. |
 | `updates` | `StakeholderUpdate[]` | Published Incident Commander bridge updates. |
@@ -98,7 +100,7 @@ Version 1 holds only `sev`, `phase`, and `roster`. The other rows of the table a
 
 The server writes `app.warroom` only through `harness.commit`. One host-lifetime watch (`watchDoc`) mirrors each committed revision into the local object `warroom.incident-mirror`, so a browser never sees a value that is not yet stored.
 
-Browsers hold the remote type `warroom.incident` v1 over the same `/chord` socket as `warroom.shell` v1. Its state is `sev`, `phase`, and `roster`. Its methods are `setPhase({ phase })` and `setSev({ sev })`. Each method asserts the caller's role from the Chord principal and rejects with `forbidden` unless the caller is the `IC`. `setPhase` checks the transition table inside the same commit and rejects with `invalid` for a move the table does not allow. The factory refuses the server's own principal with `forbidden`.
+Browsers hold the remote type `warroom.incident` v1 over the same `/chord` socket as `warroom.shell` v1. Its state is `sev`, `phase`, and `roster`; browsers do not yet receive `hypotheses` or `evidence`. Its methods are `setPhase({ phase })` and `setSev({ sev })`. Each method asserts the caller's role from the Chord principal and rejects with `forbidden` unless the caller is the `IC`. `setPhase` checks the transition table inside the same commit and rejects with `invalid` for a move the table does not allow. The factory refuses the server's own principal with `forbidden`.
 
 ### Phase transition table
 
@@ -124,6 +126,10 @@ Defined with `defineDocFamily({ kind: "app.receipt", scope: "session" })` keyed 
 
 1. **Coordinator (`root` conversation).** Configured with System 2 reasoning model, zero mutating tools, `draft_break_glass`, `create_hypothesis`, `investigate`, `confirm_hypothesis`, `rule_out_hypothesis`, `section("verified_incident_evidence")`, and `section("recent_bridge_chat")`.
 2. **Specialist Investigator (1 background task definition + 4-row `SPECIALISTS` table).** Rows: `logs`, `db`, `deploy`, and `acquirer`. Maximum 4 concurrent live children enforced inside `investigate` commit. Configured with row-specific read-only tools (requiring `since` and `until` parameters), `createCodemodeExtension` (`max` batch size <= 50 items, explicit `timeout_ms`), `record_evidence`, `report_finding`, and `section("verified_incident_evidence")`.
+
+The Coordinator and the investigators meet only at the `warroom.investigation` task (version 1), defined in `apps/warroom-server/src/agents/investigation-task.ts`. Its input is an `InvestigationRequest` (`hypothesisId`, `specialist`, `question`, `since`, `until`) and its result is an `InvestigationFinding` (`hypothesisId`, `specialist`, `verdict`, `summary`, `evidenceIds`). `launchInvestigation(tx, request)` rejects a request that fails the schema with `invalid_investigation_request` before it creates anything, and otherwise creates the task as a background task and returns its task ID. The Coordinator reads the outcome through `pi-durable` and never imports the investigators.
+
+`createAgentRegistry()` in `apps/warroom-server/src/agents/index.ts` is the one registration point. It installs the extensions `warroom.coordinator` and `warroom.investigators`, in that order; `startServer` takes an optional `agents` option to replace the registry or the models. Until the investigators feature lands, the stub `warroom.investigators` extension finishes every investigation at once with an `inconclusive` finding, and tests replace it with `fakeInvestigators(script)` from `test-support/fake-investigators.ts`.
 
 ### Tool caller boundaries
 
