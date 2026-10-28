@@ -31,8 +31,8 @@ export function resolveChaosPort(env: Record<string, string | undefined>): numbe
   return value;
 }
 
-/** The scenario a `PUT` body names, or undefined when the body is not JSON or names anything else. */
-function parseScenario(text: string): ChaosScenario | undefined {
+/** The scenario a `PUT` body or an answer names, or undefined when the text is not JSON or names anything else. */
+export function parseScenario(text: string): ChaosScenario | undefined {
   let body: unknown;
   try {
     body = JSON.parse(text);

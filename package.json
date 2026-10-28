@@ -14,7 +14,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "smoke": "node scripts/smoke.ts"
+    "smoke": "node scripts/smoke.ts",
+    "chaos": "docker compose exec -T card-auth-sandbox node apps/card-auth-sandbox/src/chaos-cli.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.6.3",
