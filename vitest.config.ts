@@ -1,7 +1,9 @@
 import { configDefaults, defineConfig } from "vitest/config";
 
 const allTests = ["apps/*/test/**/*.test.ts", "scripts/test/**/*.test.ts"];
-const timingTests = ["apps/card-auth-sandbox/test/slow-acquirer.test.ts"];
+const slowAcquirerTests = ["apps/card-auth-sandbox/test/slow-acquirer.test.ts"];
+const chaosDecoyTests = ["apps/card-auth-sandbox/test/chaos-decoy.test.ts"];
+const timingTests = [...slowAcquirerTests, ...chaosDecoyTests];
 
 export default defineConfig({
   test: {
@@ -10,7 +12,7 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 30_000,
     // Hazard: other files' database drops force checkpoints that stall WAL fsync and distort the latency proofs.
-    // Why: group 1 runs after the parallel files, preserving real PostgreSQL and the approved timing thresholds.
+    // Why: groups 1 and 2 run one after the other and after the parallel files, so no database drop overlaps a timing proof.
     projects: [
       {
         extends: true,
@@ -22,7 +24,11 @@ export default defineConfig({
       },
       {
         extends: true,
-        test: { name: "isolated", include: timingTests, sequence: { groupOrder: 1 } },
+        test: { name: "isolated", include: slowAcquirerTests, sequence: { groupOrder: 1 } },
+      },
+      {
+        extends: true,
+        test: { name: "isolated-decoy", include: chaosDecoyTests, sequence: { groupOrder: 2 } },
       },
     ],
   },
