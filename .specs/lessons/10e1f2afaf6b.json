@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-28T04:30:43.961647+00:00",
+  "id": "10e1f2afaf6b",
+  "observations": [
+    {
+      "feature": "agent-seam",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "contracts",
+  "status": "candidate",
+  "text": "Exercise forbidden extra fields inside each nested union alternative when freezing a closed shared schema."
+}
