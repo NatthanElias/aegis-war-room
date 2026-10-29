@@ -17,6 +17,7 @@ import { monitorDatabase } from "./database-monitor.ts";
 import { createDiagPool } from "./diag-pool.ts";
 import { serveIncident, serveIncidentMirror } from "./incident.ts";
 import { type IncidentStore, openIncidentStore } from "./incident-store.ts";
+import { type AgentModels, resolveModels } from "./models.ts";
 import { probeSandbox, serveRuntime } from "./runtime.ts";
 import { serveShell } from "./shell.ts";
 import { serveStatic } from "./static-files.ts";
@@ -36,8 +37,15 @@ export interface ServerOptions {
   readonly databaseUrl?: string;
   /** The alert webhooks; without a `token` every `/alerts` request answers `503`. */
   readonly alerts?: AlertSettings;
-  /** Replaces the default agent registry and model catalog; without it the two stub agents run with no model provider. */
-  readonly agents?: { readonly registry?: Registry; readonly models?: Models };
+  /**
+   * Replaces the default agent registry, model catalog and per-agent models. Without them the stub agents run with
+   * the default OpenRouter models, which hold no key and so make no model call.
+   */
+  readonly agents?: {
+    readonly registry?: Registry;
+    readonly models?: Models;
+    readonly agentModels?: AgentModels;
+  };
 }
 
 export interface RunningServer {
@@ -54,9 +62,14 @@ export interface RunningServer {
 const DEFAULT_WEB_DIST = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
 export async function startServer(options: ServerOptions): Promise<RunningServer> {
+  // Why: `resolveModels({})` registers OpenRouter with an empty environment, so a server started without
+  // explicit models can never reach OpenRouter, whatever the process environment holds.
+  const defaults = resolveModels({});
+  const agentModels = options.agents?.agentModels ?? defaults.agentModels;
   const store = await openIncidentStore(options.incidentsDir, options.incidentId, {
     registry: options.agents?.registry ?? createAgentRegistry(),
-    models: options.agents?.models,
+    models: options.agents?.models ?? defaults.models,
+    model: agentModels.coordinator,
   });
   const pool = options.databaseUrl ? createDiagPool(options.databaseUrl) : undefined;
   const monitor = pool ? monitorDatabase(pool) : undefined;

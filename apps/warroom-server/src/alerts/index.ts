@@ -1,8 +1,10 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { IncidentStore } from "../incident-store.ts";
 import { type Adapter, InvalidAlertError } from "./adapter.ts";
 import { createGrafanaAdapter } from "./grafana.ts";
+import { renderAlertInput } from "./prompt.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { type AlertEntry, applyAlerts } from "./record.ts";
 
@@ -95,7 +97,7 @@ function readBody(request: IncomingMessage): Promise<Buffer | undefined> {
  */
 export function createAlertHandler(
   settings: AlertSettings,
-  store: Pick<IncidentStore, "commitIncident">,
+  store: Pick<IncidentStore, "commitIncident" | "root">,
 ): AlertHandler {
   const now = settings.now ?? Date.now;
   const limiter = createRateLimiter({
@@ -177,6 +179,23 @@ export function createAlertHandler(
         return;
       }
       throw error;
+    }
+    // Why: the input is submitted after the commit and keyed by the alert ID, so a crash between the two is healed
+    // by the sender's retry, and a repeat of a known alert reuses its input instead of starting a second run.
+    // Hazard: the answer waits for `submit` (admission), never for the model run, so a slow or failing model
+    // cannot change what the monitoring platform is told.
+    for (const [index, entry] of entries.entries()) {
+      const alert = alerts[index];
+      if (alert === undefined || !("alertId" in entry)) continue;
+      if (entry.status !== "accepted" && entry.status !== "duplicate") continue;
+      await store.root.submit(
+        {
+          type: "input",
+          requestId: `alert:${entry.alertId}`,
+          content: renderAlertInput(entry.alertId, alert),
+        },
+        BACKGROUND_CONTEXT,
+      );
     }
     const accepted = entries.some((entry) => entry.status === "accepted");
     sendJson(response, accepted ? 202 : 200, { alerts: entries });

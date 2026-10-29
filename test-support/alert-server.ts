@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import type { Alert } from "@warroom/contracts";
 import type { AlertSettings } from "../apps/warroom-server/src/alerts/index.ts";
 import { type RunningServer, startServer } from "../apps/warroom-server/src/server.ts";
+import { createFauxModels, type FauxModels } from "./faux-models.ts";
 import { makeTempIncidents, type TempIncidents } from "./incident-server.ts";
 
 export const ALERT_TOKEN = "test-token";
@@ -47,6 +48,8 @@ export interface WebhookResponse {
 export interface AlertTestServer {
   readonly incidents: TempIncidents;
   readonly server: RunningServer;
+  /** The faux models the Coordinator runs on; no alert test can reach OpenRouter. */
+  readonly faux: FauxModels;
   /** Sends `body` as JSON, or as it is when it is a string, to the webhook. */
   post(body: unknown, options?: PostOptions): Promise<WebhookResponse>;
   /** The committed alerts, read from the running server's store. */
@@ -60,7 +63,12 @@ export async function startAlertServer(
   incidents?: TempIncidents,
 ): Promise<AlertTestServer> {
   const folder = incidents ?? (await makeTempIncidents());
-  const server = await startServer({ ...folder.serverOptions(), alerts: settings });
+  const faux = createFauxModels();
+  const server = await startServer({
+    ...folder.serverOptions(),
+    alerts: settings,
+    agents: { models: faux.models, agentModels: faux.agentModels },
+  });
   const post: AlertTestServer["post"] = async (body, options = {}) => {
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (options.authorization !== null) {
@@ -89,6 +97,7 @@ export async function startAlertServer(
   return {
     incidents: folder,
     server,
+    faux,
     post,
     async alerts() {
       return (await server.store.readIncident()).alerts;
