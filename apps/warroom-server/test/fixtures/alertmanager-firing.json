@@ -1,0 +1,51 @@
+{
+  "version": "4",
+  "groupKey": "{}:{alertname=\"HighPoolUsage\"}",
+  "truncatedAlerts": 0,
+  "status": "firing",
+  "receiver": "warroom",
+  "groupLabels": {
+    "alertname": "HighPoolUsage"
+  },
+  "commonLabels": {
+    "alertname": "HighPoolUsage",
+    "severity": "critical"
+  },
+  "commonAnnotations": {
+    "summary": "Connection pool is nearly exhausted"
+  },
+  "externalURL": "http://alertmanager.example:9093",
+  "notification_reason": "new alert",
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "HighPoolUsage",
+        "severity": "critical",
+        "instance": "card-auth-sandbox:4000"
+      },
+      "annotations": {
+        "summary": "Connection pool is nearly exhausted"
+      },
+      "startsAt": "2026-10-28T12:00:00.000Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example:9090/graph?g0.expr=pool_in_use+%3E+0.9",
+      "fingerprint": "3a1f9c0d7be24e65"
+    },
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "SlowAcquirer",
+        "severity": "warning",
+        "instance": "card-auth-sandbox:4000"
+      },
+      "annotations": {
+        "description": "acquirer-beta p95 above 5 s"
+      },
+      "startsAt": "2026-10-28T12:00:30.000Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "http://prometheus.example:9090/graph?g0.expr=acquirer_p95+%3E+5",
+      "fingerprint": "9d84b2e1c05a7f31"
+    }
+  ]
+}

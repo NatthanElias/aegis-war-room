@@ -1,4 +1,10 @@
 export {
+  type AlertInput,
+  AlertSchema,
+  type AlertStatus,
+  AlertStatusSchema,
+} from "./alert.ts";
+export {
   Incident,
   type IncidentState,
   PHASE_TRANSITIONS,
