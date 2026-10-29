@@ -1,0 +1,68 @@
+# Grafana alerting resources for `npm run check:grafana`: a webhook contact point that targets the war room,
+# a policy that sends everything to it, and a rule that always fires.
+# The ${...} values are filled from the container's environment by Grafana when it loads this file.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: warroom
+    receivers:
+      - uid: warroom-webhook
+        type: webhook
+        settings:
+          url: "${WARROOM_ALERT_URL}"
+          httpMethod: POST
+          authorization_scheme: Bearer
+          authorization_credentials: "${WARROOM_ALERT_TOKEN}"
+          hmacConfig:
+            secret: "${WARROOM_GRAFANA_HMAC_SECRET}"
+            header: X-Grafana-Alerting-Signature
+            timestampHeader: X-Grafana-Alerting-Timestamp
+
+policies:
+  - orgId: 1
+    receiver: warroom
+    group_by: ["alertname"]
+    group_wait: 1s
+    group_interval: 10s
+    repeat_interval: 1h
+
+groups:
+  - orgId: 1
+    name: warroom-check
+    folder: Warroom check
+    interval: 10s
+    rules:
+      - uid: warroom-always-firing
+        title: WarroomGrafanaCheck
+        condition: B
+        for: 0s
+        noDataState: Alerting
+        execErrState: Alerting
+        labels:
+          severity: critical
+        annotations:
+          summary: Always-firing rule from npm run check:grafana
+        data:
+          - refId: A
+            datasourceUid: __expr__
+            model:
+              refId: A
+              type: math
+              expression: "1"
+              datasource:
+                type: __expr__
+                uid: __expr__
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+              datasource:
+                type: __expr__
+                uid: __expr__

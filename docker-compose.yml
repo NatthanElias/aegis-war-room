@@ -56,6 +56,18 @@ services:
       INCIDENTS_DIR: /app/incidents
       DATABASE_URL: postgres://warroom_diag:warroom_diag@postgres:5432/warroom
       SANDBOX_URL: http://card-auth-sandbox:4000
+      # Context: these come from the git-ignored .env (see .env.example). An empty value means unset: no key
+      # leaves the Coordinator offline, empty model variables use the default model, and no token makes the
+      # alert webhooks answer 503.
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      WARROOM_MODEL_COORDINATOR: ${WARROOM_MODEL_COORDINATOR:-}
+      WARROOM_MODEL_LOGS: ${WARROOM_MODEL_LOGS:-}
+      WARROOM_MODEL_DB: ${WARROOM_MODEL_DB:-}
+      WARROOM_MODEL_DEPLOY: ${WARROOM_MODEL_DEPLOY:-}
+      WARROOM_MODEL_ACQUIRER: ${WARROOM_MODEL_ACQUIRER:-}
+      WARROOM_ALERT_TOKEN: ${WARROOM_ALERT_TOKEN:-}
+      WARROOM_GRAFANA_HMAC_SECRET: ${WARROOM_GRAFANA_HMAC_SECRET:-}
+      WARROOM_ALERT_RATE_LIMIT: ${WARROOM_ALERT_RATE_LIMIT:-}
     depends_on:
       migrate:
         condition: service_completed_successfully

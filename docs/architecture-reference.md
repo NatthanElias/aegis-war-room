@@ -77,9 +77,9 @@ An authorization that began before the window is left out of the counts even whi
 
 ### Session singleton: `app.warroom`
 
-Defined with `defineDoc({ kind: "app.warroom", version: 2, scope: "session", initial, migrate, checkpointWhen })` in `apps/warroom-server/src/incident-store.ts`. `checkpointWhen` stores a complete base once 49 deltas follow the newest base, which gives "checkpointed every 50 operations". A new incident starts at `SEV-1` and `DETECT` with the seeded roster and empty `hypotheses` and `evidence` records.
+Defined with `defineDoc({ kind: "app.warroom", version: 3, scope: "session", initial, migrate, checkpointWhen })` in `apps/warroom-server/src/incident-store.ts`. `checkpointWhen` stores a complete base once 49 deltas follow the newest base, which gives "checkpointed every 50 operations". A new incident starts at `SEV-1` and `DETECT` with the seeded roster and empty `hypotheses`, `evidence`, and `alerts` records.
 
-The document is at version 2. Version 2 holds `sev`, `phase`, `roster`, `hypotheses`, and `evidence`. The `migrate` function reads a stored version 1 value, keeps its `sev`, `phase`, and `roster`, and adds the two empty records, so an incident file written before version 2 opens unchanged in meaning. A version 2 file cannot be read by version 1 code. The other rows of the table are added by the features that need them, each with a version bump and a `migrate` function.
+The document is at version 3. Version 3 holds `sev`, `phase`, `roster`, `hypotheses`, `evidence`, and `alerts`. The `migrate` function reads a stored value of version 1 or 2, keeps every field it already has, and adds the empty records that version lacks, so an incident file written by earlier code opens unchanged in meaning. A version 3 file cannot be read by version 2 code, and a version 2 file cannot be read by version 1 code. The other rows of the table are added by the features that need them, each with a version bump and a `migrate` function.
 
 The `Hypothesis`, `Evidence`, `InvestigationRequest`, and `InvestigationFinding` shapes are TypeBox schemas in `packages/contracts/src/investigation.ts`, with the `SPECIALISTS` table (`logs`, `db`, `deploy`, `acquirer`).
 
@@ -91,6 +91,7 @@ The `Hypothesis`, `Evidence`, `InvestigationRequest`, and `InvestigationFinding`
 | `semanticGuardEnabled` | `boolean` | Controls whether `Jev` Spot C screens external webhook bodies. |
 | `hypotheses` | `Record<string, Hypothesis>` | Keyed by `H1`, `H2`, and so on (version 2). States: `"active" \| "ruled_out" \| "confirmed"`. Tracks `title`, `supportingEvidenceIds`, `contradictingEvidenceIds`, `missingEvidence` (`{ id, need, askOf? }`), and `createdAt`. |
 | `evidence` | `Record<string, EvidenceEntry>` | Keyed by `EV-01`, `EV-02`, and so on (version 2). Immutable `EV-*` facts containing `hypothesisId`, `observation`, `quote`, `source` (`{ kind: "receipt", receiptIds }` or `{ kind: "human", userId, role }`), and `createdAt`. |
+| `alerts` | `Record<string, Alert>` | Keyed by `AL-01`, `AL-02`, and so on (version 3), allocated inside the commit and never reused. Each alert holds `id`, `source`, `fingerprint`, `status` (`"firing" \| "resolved"`), `title`, optional `severity`, `summary` and `url`, `labels`, `startedAt`, `receivedAt` and, once resolved, `resolvedAt`. At most one alert per `source` and `fingerprint` is `firing`. The `Alert` shape is `AlertRecordSchema` in `packages/contracts/src/alert.ts`. |
 | `rejected` | `RejectedEvidence[]` | Audit log of submissions rejected by the receipt check, causal regex, or `Jev` Spot A (`reason: "missing_receipt" \| "quote_mismatch" \| "causal_speculation" \| "guard_unavailable"`). |
 | `proposals` | `Record<string, BreakGlassProposal>` | Drafted, Maker-signed, Checker-approved, and executed Break-Glass records (`BG-*`), including `payloadHash` and `rollbackSafety`. |
 | `updates` | `StakeholderUpdate[]` | Published Incident Commander bridge updates. |
@@ -129,7 +130,39 @@ Defined with `defineDocFamily({ kind: "app.receipt", scope: "session" })` keyed 
 
 The Coordinator and the investigators meet only at the `warroom.investigation` task (version 1), defined in `apps/warroom-server/src/agents/investigation-task.ts`. Its input is an `InvestigationRequest` (`hypothesisId`, `specialist`, `question`, `since`, `until`) and its result is an `InvestigationFinding` (`hypothesisId`, `specialist`, `verdict`, `summary`, `evidenceIds`). `launchInvestigation(tx, request)` rejects a request that fails the schema with `invalid_investigation_request` before it creates anything, and otherwise creates the task as a background task and returns its task ID. The Coordinator reads the outcome through `pi-durable` and never imports the investigators.
 
-`createAgentRegistry()` in `apps/warroom-server/src/agents/index.ts` is the one registration point. It installs the extensions `warroom.coordinator` and `warroom.investigators`, in that order; `startServer` takes an optional `agents` option to replace the registry or the models. Until the investigators feature lands, the stub `warroom.investigators` extension finishes every investigation at once with an `inconclusive` finding, and tests replace it with `fakeInvestigators(script)` from `test-support/fake-investigators.ts`.
+`createAgentRegistry({ deps, investigators? })` in `apps/warroom-server/src/agents/index.ts` is the one registration point. It installs the extensions `warroom.coordinator` and `warroom.investigators`, in that order, by calling `createCoordinatorExtension(deps)` and `createInvestigatorsExtension(deps)`. `AgentDeps` is `{ diagPool?, sandboxUrl, agentModels }`: the `warroom_diag` pool that `startServer` creates before the registry, the sandbox URL, and the model of each of the five agents. `startServer` takes an optional `agents` option to replace the registry, the model catalog, or the per-agent models. Until the investigators feature lands, the stub `warroom.investigators` extension finishes every investigation at once with an `inconclusive` finding, and tests replace it with `fakeInvestigators(script)` from `test-support/fake-investigators.ts`.
+
+### Model setup
+
+`resolveModels(env)` in `apps/warroom-server/src/models.ts` registers pi-ai's `openrouterProvider()`, which reads `OPENROUTER_API_KEY` only when a model is called. Each agent has its own environment variable, and an empty or missing variable means `anthropic/claude-haiku-5.5`:
+
+| Agent | Variable |
+| :--- | :--- |
+| Coordinator | `WARROOM_MODEL_COORDINATOR` |
+| `logs` investigator | `WARROOM_MODEL_LOGS` |
+| `db` investigator | `WARROOM_MODEL_DB` |
+| `deploy` investigator | `WARROOM_MODEL_DEPLOY` |
+| `acquirer` investigator | `WARROOM_MODEL_ACQUIRER` |
+
+A model ID that OpenRouter's bundled catalogue does not list stops startup with `unknown model <id> (<variable>)`. A missing `OPENROUTER_API_KEY` does not stop startup: `main.ts` prints `Coordinator offline: OPENROUTER_API_KEY is not set`. The incident store calls `root.configure({ model })` with the Coordinator's model every time it opens the incident file, so a changed variable takes effect after a restart.
+
+### Alert webhooks
+
+`POST /alerts/grafana` is the only way an alert enters the war room (team decision D-16). It reads the body of a Grafana webhook contact point, which Prometheus Alertmanager's `webhook_config` also sends. `docs/alert-webhook.md` is the setup guide and `docs/security.md` lists the controls and their gaps. The handler in `apps/warroom-server/src/alerts/index.ts` runs these checks in order, and the first failure answers:
+
+| Order | Check | Answer |
+| :--- | :--- | :--- |
+| 1 | `WARROOM_ALERT_TOKEN` is set and not empty | `503` `alerts_disabled` |
+| 2 | The method is `POST` | `405` `method_not_allowed` with `Allow: POST` |
+| 3 | The path names an adapter (`/alerts/grafana`) | `404` `unknown_source` |
+| 4 | `Authorization: Bearer` matches the token, compared in constant time | `401` `unauthorized` with `WWW-Authenticate: Bearer` |
+| 5 | `Content-Type` is `application/json` | `415` `unsupported_media_type` |
+| 6 | The body is at most 262,144 bytes | `413` `payload_too_large` |
+| 7 | The adapter's verifier accepts the raw body: with `WARROOM_GRAFANA_HMAC_SECRET` set, the Grafana signature and a timestamp within 300 seconds | `401` `unauthorized` |
+| 8 | The body is JSON and the adapter's schema accepts it | `400` `invalid_alert` with a `detail` naming the field |
+| 9 | The request's new alerts fit the rate limit `WARROOM_ALERT_RATE_LIMIT` (default 30 per sliding 60 seconds) | `429` `rate_limited` with `Retry-After`; nothing is stored |
+
+A request that passes answers `202` when any alert is new and `200` otherwise, with one entry per alert in the body: `accepted`, `duplicate`, `resolved`, or `ignored`. Inside one `commitIncident`, the handler matches each alert by `source` and `fingerprint`: a new firing alert gets the next `AL-NN` ID, a repeat of a firing alert is a `duplicate`, and a resolution marks the firing alert resolved. Then, for every firing alert, new or repeated, it calls `root.submit` with `requestId` `alert:<id>`, so one alert is one Coordinator input even across retries and a crash between storing and submitting. The input starts with `Monitoring alert <id> from <source>` and labels every monitoring value as untrusted text.
 
 ### Tool caller boundaries
 
