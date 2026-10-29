@@ -1,5 +1,8 @@
 export {
+  type Alert,
+  AlertIdSchema,
   type AlertInput,
+  AlertRecordSchema,
   AlertSchema,
   type AlertStatus,
   AlertStatusSchema,

@@ -28,3 +28,30 @@ export const AlertSchema = Type.Object(
 
 export type AlertStatus = Static<typeof AlertStatusSchema>;
 export type AlertInput = Static<typeof AlertSchema>;
+
+/** `AL-01`, `AL-02`, ... `AL-123`; at least two digits, allocated by the war room and never reused. */
+export const AlertIdSchema = Type.String({ pattern: "^AL-[0-9]{2,}$" });
+
+/**
+ * An alert as `app.warroom` stores it: the adapter's alert plus the war room's ID and times.
+ * Context: `labels` is always present here (`{}` when the source sent none), unlike in `AlertSchema`.
+ */
+export const AlertRecordSchema = Type.Object(
+  {
+    id: AlertIdSchema,
+    source: AlertSchema.properties.source,
+    fingerprint: AlertSchema.properties.fingerprint,
+    status: AlertStatusSchema,
+    title: AlertSchema.properties.title,
+    severity: AlertSchema.properties.severity,
+    summary: AlertSchema.properties.summary,
+    url: AlertSchema.properties.url,
+    labels: Type.Record(Type.String(), Type.String({ maxLength: 256 })),
+    startedAt: AlertSchema.properties.startedAt,
+    receivedAt: Type.String({ format: "date-time" }),
+    resolvedAt: Type.Optional(Type.String({ format: "date-time" })),
+  },
+  { additionalProperties: false },
+);
+
+export type Alert = Static<typeof AlertRecordSchema>;

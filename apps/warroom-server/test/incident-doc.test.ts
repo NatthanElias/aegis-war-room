@@ -43,9 +43,14 @@ describe("app.warroom document", () => {
 
     const expected = { sev: "SEV-1", phase: "DETECT", roster: SEEDED_ROSTER };
     expect(served).toEqual(expected);
-    // Why: reading the file after the server closed shows the value came from the stored document. Version 2 of
-    // the document adds the two empty records the browser never receives.
-    expect(await incidents.read()).toEqual({ ...expected, hypotheses: {}, evidence: {} });
+    // Why: reading the file after the server closed shows the value came from the stored document. Versions 2 and 3
+    // of the document add the three empty records the browser never receives.
+    expect(await incidents.read()).toEqual({
+      ...expected,
+      hypotheses: {},
+      evidence: {},
+      alerts: {},
+    });
   });
 
   test("keeps phase and severity after restart", async () => {

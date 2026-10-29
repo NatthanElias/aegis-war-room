@@ -55,6 +55,7 @@ describe("app.warroom version 2", () => {
       roster: SEEDED_ROSTER,
       hypotheses: {},
       evidence: {},
+      alerts: {},
     });
   });
 
@@ -107,6 +108,7 @@ describe("app.warroom version 2", () => {
       roster: SEEDED_ROSTER,
       hypotheses: {},
       evidence: {},
+      alerts: {},
     };
     const first = await openIncidentStore(dir, TEST_INCIDENT_ID);
     const afterMigration = await first.readIncident();

@@ -4,14 +4,17 @@ import type { Draft } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createModels, type Models } from "@earendil-works/pi-ai/models";
 import {
+  type Conversation,
   createRegistry,
   type DocumentWatch,
   defineDoc,
   Harness,
+  type ModelRef,
   type Registry,
 } from "@earendil-works/pi-durable";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
 import {
+  type Alert,
   type Evidence,
   type Hypothesis,
   type Phase,
@@ -20,7 +23,7 @@ import {
   type Severity,
 } from "@warroom/contracts";
 
-/** The stored value of `app.warroom` version 2. */
+/** The stored value of `app.warroom` version 3. */
 // Context: a type alias, not an interface, because pi-durable documents must be assignable to `JsonObject`.
 export type IncidentDoc = {
   sev: Severity;
@@ -30,6 +33,8 @@ export type IncidentDoc = {
   hypotheses: Record<string, Hypothesis>;
   /** Keyed by evidence ID (`EV-01`, `EV-02`, ...); a record is never changed once written. */
   evidence: Record<string, Evidence>;
+  /** Keyed by alert ID (`AL-01`, `AL-02`, ...); an alert changes only from `firing` to `resolved`. */
+  alerts: Record<string, Alert>;
 };
 
 /** Why: a complete base after 49 deltas gives "checkpointed every 50 operations" and bounds replay on open. */
@@ -41,7 +46,7 @@ const DELTAS_PER_CHECKPOINT = 49;
  */
 export const AppWarroom = defineDoc<IncidentDoc>({
   kind: "app.warroom",
-  version: 2,
+  version: 3,
   scope: "session",
   initial: () => ({
     sev: "SEV-1",
@@ -53,16 +58,21 @@ export const AppWarroom = defineDoc<IncidentDoc>({
     },
     hypotheses: {},
     evidence: {},
+    alerts: {},
   }),
-  // Hazard: a stored version 2 cannot be read by version 1 code, so a later bump must keep this chain
-  // working for every older file, including the demo volume's version 1 incident.
+  // Hazard: a stored version 3 cannot be read by version 2 code. pi-durable calls this once with the stored
+  // version, so it must reach the current shape from every older version, including the demo volume's version 1.
   migrate: (value, fromVersion) => {
-    if (fromVersion !== 1)
+    if (fromVersion !== 1 && fromVersion !== 2) {
       throw new Error(`app.warroom cannot migrate from version ${fromVersion}`);
+    }
+    const base = value as Omit<IncidentDoc, "hypotheses" | "evidence" | "alerts"> &
+      Partial<Pick<IncidentDoc, "hypotheses" | "evidence">>;
     return {
-      ...(value as Omit<IncidentDoc, "hypotheses" | "evidence">),
-      hypotheses: {},
-      evidence: {},
+      ...base,
+      hypotheses: base.hypotheses ?? {},
+      evidence: base.evidence ?? {},
+      alerts: {},
     };
   },
   checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= DELTAS_PER_CHECKPOINT,
@@ -71,6 +81,9 @@ export const AppWarroom = defineDoc<IncidentDoc>({
 export interface IncidentStore {
   readonly file: string;
   readonly conversationId: number;
+  /** Context: exposed so `alerts/` can submit root input; the store still owns open and close. */
+  readonly harness: Harness;
+  readonly root: Conversation;
   /** The committed `app.warroom` value. */
   readIncident(): Promise<Readonly<IncidentDoc>>;
   /**
@@ -87,6 +100,8 @@ export interface IncidentStore {
 export interface IncidentAgents {
   readonly registry?: Registry;
   readonly models?: Models;
+  /** The root conversation's model; applied on every open, so a changed setting takes effect after a restart. */
+  readonly model?: ModelRef;
 }
 
 /**
@@ -114,6 +129,7 @@ export async function openIncidentStore(
     BACKGROUND_CONTEXT,
   );
   const root = await harness.root(BACKGROUND_CONTEXT);
+  if (agents.model !== undefined) await root.configure({ model: agents.model }, BACKGROUND_CONTEXT);
   // Why: reading a missing document through `tx.doc` creates it from `initial()` in this commit, and an
   // existing document keeps its stored value, so a restart never resets the incident.
   await harness.commit(async (tx) => {
@@ -122,6 +138,8 @@ export async function openIncidentStore(
   return {
     file,
     conversationId: root.id,
+    harness,
+    root,
     async readIncident() {
       const doc = await harness.snapshot(AppWarroom, BACKGROUND_CONTEXT);
       if (doc === undefined) throw new Error("app.warroom is missing from an opened incident");
