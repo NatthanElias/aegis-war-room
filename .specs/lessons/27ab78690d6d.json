@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-29T23:30:24.452404+00:00",
+  "id": "27ab78690d6d",
+  "observations": [
+    {
+      "feature": "alert-intake",
+      "signal": "ac_gap"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "warroom-server/alerts",
+  "status": "candidate",
+  "text": "Exercise literal accepted and rejected payload sizes at externally specified byte boundaries."
+}

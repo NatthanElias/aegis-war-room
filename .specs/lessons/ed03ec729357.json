@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-29T23:30:24.284645+00:00",
+  "id": "ed03ec729357",
+  "observations": [
+    {
+      "feature": "alert-intake",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "warroom-server/models",
+  "status": "candidate",
+  "text": "Verify configured models at the process entry boundary through persisted runtime state rather than only validating configuration and its consumers separately."
+}

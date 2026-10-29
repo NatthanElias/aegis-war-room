@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-29T23:30:24.528855+00:00",
+  "id": "67c606e0d06c",
+  "observations": [
+    {
+      "feature": "alert-intake",
+      "signal": "gate_fail"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "test-support",
+  "status": "candidate",
+  "text": "Identify the cause of unexpected network connections before treating later passing regression runs as evidence of a pre-existing race."
+}

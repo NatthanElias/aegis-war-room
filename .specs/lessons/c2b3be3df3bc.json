@@ -1,0 +1,17 @@
+{
+  "created": "2026-10-29T23:30:24.364641+00:00",
+  "id": "c2b3be3df3bc",
+  "observations": [
+    {
+      "feature": "alert-intake",
+      "signal": "surviving_mutant"
+    }
+  ],
+  "penalties": [],
+  "project": "warroom",
+  "repository": "warroom",
+  "schema": 3,
+  "scope": "warroom-server/alerts",
+  "status": "candidate",
+  "text": "Pin protocol boundary inputs independently of production constants so changing the implementation limit cannot move the test expectation."
+}
