@@ -1,3 +1,4 @@
+import type { IncomingHttpHeaders } from "node:http";
 import type { AlertInput } from "@warroom/contracts";
 import { type Static, type TSchema, Type } from "typebox";
 import Value from "typebox/value";
@@ -13,10 +14,23 @@ export class InvalidAlertError extends Error {
   }
 }
 
+/** What a verifier sees of a request: the headers and the exact bytes that were sent. */
+export interface RawRequest {
+  readonly headers: IncomingHttpHeaders;
+  readonly rawBody: Buffer;
+  /** The server clock in epoch milliseconds. */
+  readonly nowMs: number;
+}
+
 /** One monitoring source: reads that tool's own webhook body into internal alerts. */
 export interface Adapter {
   /** Throws `InvalidAlertError` when `body` is not what the tool sends. */
   parse(body: unknown): AlertInput[];
+  /**
+   * Checks the raw request after the bearer token. Returns why it was refused, or `undefined` to accept it.
+   * An adapter without a verifier relies on the token alone.
+   */
+  verify?(request: RawRequest): string | undefined;
 }
 
 /**

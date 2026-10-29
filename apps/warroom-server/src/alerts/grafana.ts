@@ -1,7 +1,8 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { type AlertInput, AlertSchema } from "@warroom/contracts";
 import { type Static, Type } from "typebox";
 import Value from "typebox/value";
-import { type Adapter, assertShape, StringMapSchema } from "./adapter.ts";
+import { type Adapter, assertShape, type RawRequest, StringMapSchema } from "./adapter.ts";
 
 const SOURCE = "grafana";
 const FALLBACK_TITLE = "Grafana alert";
@@ -65,4 +66,48 @@ function parse(body: unknown): AlertInput[] {
   });
 }
 
-export const grafanaAdapter: Adapter = { parse };
+/** Context: a request is refused when its timestamp is more than this many seconds from the server clock. */
+const REPLAY_WINDOW_SECONDS = 300;
+const SIGNATURE_HEADER = "x-grafana-alerting-signature";
+const TIMESTAMP_HEADER = "x-grafana-alerting-timestamp";
+
+const singleHeader = (value: string | string[] | undefined) =>
+  typeof value === "string" ? value : undefined;
+
+/**
+ * Checks Grafana's HMAC signature: the hex HMAC-SHA256 of the timestamp header's value, a colon and the raw body.
+ * Context: Grafana's documentation gives this form and calls the timestamp header optional; the war room requires
+ * it, because without it a captured request could be replayed forever.
+ * Hazard: sign the raw bytes as received. A re-serialized body can differ and would make every request fail,
+ * or worse, verify something other than what the parser reads.
+ */
+function verifySignature(secret: string, request: RawRequest): string | undefined {
+  const signature = singleHeader(request.headers[SIGNATURE_HEADER]);
+  if (signature === undefined) return "missing_signature";
+  const timestamp = singleHeader(request.headers[TIMESTAMP_HEADER]);
+  if (timestamp === undefined) return "missing_timestamp";
+  if (!/^[0-9]{1,15}$/.test(timestamp)) return "bad_timestamp";
+  const expected = createHmac("sha256", secret)
+    .update(`${timestamp}:`)
+    .update(request.rawBody)
+    .digest();
+  // Hazard: compare the decoded bytes in constant time; a plain string compare leaks how many leading characters match.
+  const given = /^[0-9a-fA-F]{64}$/.test(signature) ? Buffer.from(signature, "hex") : undefined;
+  if (given === undefined || !timingSafeEqual(given, expected)) return "bad_signature";
+  // Why: the window is checked after the signature, so only a holder of the secret learns where it ends.
+  if (Math.abs(request.nowMs / 1000 - Number(timestamp)) > REPLAY_WINDOW_SECONDS) {
+    return "stale_timestamp";
+  }
+  return undefined;
+}
+
+/** The Grafana adapter; `hmacSecret` turns the signature check on. */
+export function createGrafanaAdapter(options: { hmacSecret?: string } = {}): Adapter {
+  const { hmacSecret } = options;
+  return hmacSecret
+    ? { parse, verify: (request) => verifySignature(hmacSecret, request) }
+    : { parse };
+}
+
+/** The adapter without a signature check, which is what the parser tests use. */
+export const grafanaAdapter: Adapter = createGrafanaAdapter();

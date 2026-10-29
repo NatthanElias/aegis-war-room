@@ -12,10 +12,11 @@ import {
 } from "@warroom/contracts";
 import { WebSocketServer } from "ws";
 import { createAgentRegistry } from "./agents/index.ts";
+import { type AlertSettings, createAlertHandler } from "./alerts/index.ts";
 import { monitorDatabase } from "./database-monitor.ts";
 import { createDiagPool } from "./diag-pool.ts";
 import { serveIncident, serveIncidentMirror } from "./incident.ts";
-import { openIncidentStore } from "./incident-store.ts";
+import { type IncidentStore, openIncidentStore } from "./incident-store.ts";
 import { probeSandbox, serveRuntime } from "./runtime.ts";
 import { serveShell } from "./shell.ts";
 import { serveStatic } from "./static-files.ts";
@@ -33,6 +34,8 @@ export interface ServerOptions {
   readonly webDist?: string;
   /** The `warroom_diag` URL. Tests that need no database leave it out and `/healthz` then reports ok. */
   readonly databaseUrl?: string;
+  /** The alert webhooks; without a `token` every `/alerts` request answers `503`. */
+  readonly alerts?: AlertSettings;
   /** Replaces the default agent registry and model catalog; without it the two stub agents run with no model provider. */
   readonly agents?: { readonly registry?: Registry; readonly models?: Models };
 }
@@ -43,6 +46,8 @@ export interface RunningServer {
   readonly conversationId: number;
   /** The Chord host, so tests can act as the server's own principal. */
   readonly chord: Host<Principal>;
+  /** The incident store, so tests read the durable state the server wrote without opening the file twice. */
+  readonly store: IncidentStore;
   close(): Promise<void>;
 }
 
@@ -70,8 +75,17 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   await chord.ready();
 
   const webDist = options.webDist ?? DEFAULT_WEB_DIST;
+  const handleAlerts = createAlertHandler(options.alerts ?? {}, store);
   const server: Server = createServer((request, response) => {
     const url = new URL(request.url ?? "/", "http://localhost");
+    if (url.pathname === "/alerts" || url.pathname.startsWith("/alerts/")) {
+      handleAlerts(request, response, url.pathname).catch((error: unknown) => {
+        console.error("alerts: unexpected failure", error);
+        if (!response.headersSent) response.writeHead(500, { "content-type": "application/json" });
+        response.end(JSON.stringify({ error: "internal_error" }));
+      });
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/healthz") {
       const ready = monitor?.ready ?? true;
       response.writeHead(ready ? 200 : 503, { "content-type": "application/json" });
@@ -108,6 +122,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     incidentId: options.incidentId,
     conversationId: store.conversationId,
     chord,
+    store,
     async close() {
       monitor?.stop();
       for (const client of wss.clients) client.terminate();
