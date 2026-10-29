@@ -1,6 +1,6 @@
 # War room roadmap
 
-Last checkpoint: 2026-10-27. Stories: [STORIES.md](STORIES.md).
+Last checkpoint: 2026-10-28. Stories: [STORIES.md](STORIES.md).
 
 Phase 01, new project. Previous phases: None.
 
@@ -8,14 +8,15 @@ Phase 01, new project. Previous phases: None.
 
 During a Sev-1 card-payment outage, responders anchor on the loudest symptom and lose minutes to it. The war room runs AI investigators that may only record receipt-backed evidence, and it lets a remediation run only after two people sign it.
 
-Demo story: Alice, the Incident Commander, and Bob, a Responder, open the war room in two browsers. Bob injects the cascade decoy, which is an 8-second `acquirer-beta` delay that saturates the sandbox's database pool. The Coordinator opens competing hypotheses, and investigators record receipt-backed evidence that disproves the "database saturated" decoy and points at `acquirer-beta`. Midway through, someone runs `kill -9` on `warroom-server`, and the investigation resumes with nothing lost. The Coordinator drafts a Break-Glass action. Bob signs Key 1, and Alice signs Key 2. The sandbox recovers, and the card TPV bleed drops on screen.
+Demo story: Alice, the Incident Commander, and Bob, a Responder, open the war room in two browsers. The presenter starts the cascade decoy from a terminal: an 8-second `acquirer-beta` delay that saturates the sandbox's database pool. The company's monitoring console shows authorizations slowing and the pool filling, and its alert calls the war room's webhook. The Coordinator wakes and opens competing hypotheses, and investigators record receipt-backed evidence that disproves the "database saturated" decoy and points at `acquirer-beta`. Midway through, someone runs `kill -9` on `warroom-server`, and the investigation resumes with nothing lost. The Coordinator drafts a Break-Glass action. Bob signs Key 1, and Alice signs Key 2. The sandbox recovers, and the card TPV bleed drops on screen.
 
 ## Constraints
 
 - Output language: English.
 - Deadline: 2026-12-03, the live defense. The date is fixed, and the cut line moves when time runs short.
 - Developers: 1, Natthan.
-- Must budget: the Musts do not fit in 60% of the time at the standard pace. The team kept every Must at full size, chose the AI-assisted size mapping, and accepted no slack before the Shoulds.
+- Must budget: at the 2026-10-28 checkpoint, the remaining Musts take 12 of the 25 working days left (48%), inside the 60% budget at the recalibrated pace. At the kickoff they did not fit at the standard pace.
+- Quality bar: every screen is built as a finished, production-grade product, not a demo-only panel (D-10).
 
 ## Schedule
 
@@ -51,38 +52,44 @@ gantt
     M4 Live defense                    :milestone, m4, 2026-12-03, 0d
 
     section Milestone 0, Natthan
-    walking-skeleton US-01             :crit, skel, 2026-10-27, 2d
+    walking-skeleton US-01             :done, crit, skel, 2026-10-27, 1d
 
     section War room, Natthan
-    card-auth-sandbox US-02            :crit, sbx, after skel, 2d
-    warroom-state US-04                :crit, state, after sbx, 2d
-    chaos-cascade-decoy US-03          :crit, decoy, after state, 1d
-    coordinator US-07                  :crit, coord, after decoy, 2d
-    investigators US-05                :crit, inv, after coord, 3d
-    evidence-gate US-06                :crit, gate, after inv, 2d
-    warroom-ui US-08                   :crit, ui, after gate, 3d
-    break-glass US-09                  :crit, bg, after ui, 2d
+    card-auth-sandbox US-02            :done, crit, sbx, 2026-10-27, 1d
+    warroom-state US-04                :done, crit, state, 2026-10-27, 1d
+    chaos-cascade-decoy US-03          :done, crit, decoy, 2026-10-28, 1d
+    agent-seam EN-02                   :done, crit, seam, 2026-10-28, 1d
+    alert-intake US-20                 :crit, intake, 2026-10-29, 1d
+    monitoring-console US-21           :crit, mon, after intake, 2d
+    coordinator US-07                  :crit, coord, after mon, 2d
+    investigators US-05                :crit, inv, after mon, 2d
+    evidence-gate US-06                :crit, gate, after coord inv, 1d
+    warroom-ui US-08                   :crit, ui, after gate, 2d
+    warroom-tabs US-22                 :crit, tabs, after ui, 2d
+    break-glass US-09                  :crit, bg, after tabs, 1d
     crash-resume US-10                 :crit, crash, after bg, 1d
     webhook-injection US-11            :wh, after crash, 1d
     semantic-guard US-12               :guard, after wh, 1d
     tpv-token-meter US-13              :tpv, after guard, 1d
-    e2e-suite EN-01                    :e2e, after tpv, 2d
+    e2e-suite EN-01                    :e2e, after tpv, 1d
     chaos-bad-bin US-15                :bin, after e2e, 1d
-    rollback-safety US-16              :rbs, after bin, 2d
+    rollback-safety US-16              :rbs, after bin, 1d
     remediation-spec US-17             :spec, after rbs, 1d
     stakeholder-update US-18           :upd, after spec, 1d
-    batch-triage US-19                 :triage, after upd, 2d
+    batch-triage US-19                 :triage, after upd, 1d
     human-attestation, Could           :att, after triage, 1d
     steer-stop, Could                  :steer, after att, 1d
 ```
 
 The schedule rests on these assumptions:
 
-- Sizes become working days: S takes 1 day, M takes 2, and L takes 3. This is an AI-assisted pace. At the standard pace of 1, 3, and 5 days, the Musts alone would run past the deadline.
+- Sizes become working days: S takes 1 day, M takes 1, and L takes 2 (D-11). The 2026-10-28 checkpoint measured about 7 planned days of features finished in 2 calendar days, so this mapping still holds about half the measured pace in reserve for review, integration, and UI polish.
+- Finished features show their actual dates, one day each.
 - The chart skips weekends. The team works every weekday, holidays included.
-- The extras run in reverse cut order, so the last feature to cut is built first. Under this plan, the work through `chaos-bad-bin` ends on 2026-12-01. Everything from `rollback-safety` on falls on or after the demo day, and it ships only if the Musts finish early.
+- `coordinator` and `investigators` run on the same days in two Git worktrees, both supervised by Natthan, and merge before `evidence-gate` (D-09). It is the one place the chart gives one developer two tasks on a day.
+- The extras run in reverse cut order, so the last feature to cut is built first. Under this plan the Musts end on 2026-11-13, every Should ends by 2026-11-26, and both Coulds by 2026-11-30, three working days before the defense.
 - No Must waits for a Could, so cutting `steer-stop` frees no Must date. It shortens the tail of the extras.
-- One developer means no parallel slack. A one-day slip in any Must moves every later bar by one day.
+- One developer means little slack outside the parallel pair. A one-day slip in any Must moves every later bar by one day.
 
 ## Scope
 
@@ -90,12 +97,16 @@ The schedule rests on these assumptions:
 | --- | --- | --- | --- | --- | --- |
 | Must | Walking skeleton: compose stack, three PostgreSQL pools and roles, empty services, UI shell, test runner | `walking-skeleton` | M | US-01 | War room |
 | Must | Card authorization sandbox with BIN routing, two acquirers, and read-only telemetry | `card-auth-sandbox` | M | US-02 | War room |
+| Must | Groundwork: the Coordinator–investigator contract, agent registration, and incident document version 2 | `agent-seam` | S | EN-02 | War room |
+| Must | Alert webhook that wakes the war room, plus the agent wiring both agent features need | `alert-intake` | M | US-20 | War room |
+| Must | The company's monitoring console: live authorizations, charts, and an alert rule that calls the war room | `monitoring-console` | L | US-21 | War room |
 | Must | Scenario A, the cascade decoy fault | `chaos-cascade-decoy` | S | US-03 | War room |
 | Must | Incident state, phases, roster, and Chord role permissions | `warroom-state` | M | US-04 | War room |
 | Must | Four specialist investigators with receipts and sanitization | `investigators` | L | US-05 | War room |
 | Must | Evidence gate: receipt and quote checks, causal regex, and Jev Spot A | `evidence-gate` | M | US-06 | War room |
 | Must | Coordinator agent with hypothesis tools and the confirmation gates | `coordinator` | M | US-07 | War room |
-| Must | Split-screen UI: chat plus the Hypotheses, Evidence, Break-Glass, and Status & Spec tabs | `warroom-ui` | L | US-08 | War room |
+| Must | War room UI foundation: design system, split-screen layout, top bar, and the bridge chat | `warroom-ui` | L | US-08 | War room |
+| Must | War room tabs: Hypotheses, Evidence, Break-Glass, and Status & Spec | `warroom-tabs` | L | US-22 | War room |
 | Must | Two-Key Break-Glass with durable idempotent execution | `break-glass` | M | US-09 | War room |
 | Must | Crash and resume of `warroom-server` during an investigation | `crash-resume` | S | US-10 | War room |
 | Should | Overlay I, webhook prompt injection and PAN leak | `webhook-injection` | S | US-11 | War room |
@@ -117,16 +128,18 @@ The schedule rests on these assumptions:
 
 Cut order, first to go: `steer-stop`, `human-attestation`, `batch-triage`, `stakeholder-update`, `remediation-spec`, `rollback-safety`, `chaos-bad-bin`, `e2e-suite`, `tpv-token-meter`, `semantic-guard`, `webhook-injection`.
 
+Shipped by 2026-10-28: `walking-skeleton`, `card-auth-sandbox`, `warroom-state`, `chaos-cascade-decoy`, and `agent-seam`, each verified.
+
 At a phase close, the Priority column keeps the phase's priorities, and each row records whether the feature shipped.
 
 ## Milestones
 
 | Milestone | Outcome | Target date | Status |
 | --- | --- | --- | --- |
-| 0 | Walking skeleton: `docker compose up` starts PostgreSQL, `card-auth-sandbox`, and `warroom-server`. A browser opens the war room shell over a Chord WebSocket, and the build and test commands run. | 2026-10-28 | Not started |
-| 1 | Bob injects the cascade decoy and the sandbox pool saturates, while Alice and Bob see the same incident state live in two browsers, each with their own role permissions. | 2026-11-04 | Not started |
-| 2 | An alert opens competing hypotheses. Investigators record receipt-backed evidence that disproves the database decoy, and the gate rejects speculative or unquoted evidence. | 2026-11-13 | Not started |
-| 3 | The whole demo story runs in the split-screen UI: Two-Key Break-Glass fixes `acquirer-beta`, and a `kill -9` mid-investigation resumes cleanly. | 2026-11-23 | Not started |
+| 0 | Walking skeleton: `docker compose up` starts PostgreSQL, `card-auth-sandbox`, and `warroom-server`. A browser opens the war room shell over a Chord WebSocket, and the build and test commands run. | 2026-10-28 | Done 2026-10-27 |
+| 1 | The presenter starts the cascade decoy and the sandbox pool saturates, while Alice and Bob see the same incident state live in two browsers, each with their own role permissions. | 2026-11-04 | Done 2026-10-28 |
+| 2 | The monitoring console's alert wakes the war room and opens competing hypotheses. Investigators record receipt-backed evidence that disproves the database decoy, and the gate rejects speculative or unquoted evidence. | 2026-11-13 | Not started |
+| 3 | The whole demo story runs in the finished split-screen UI: Two-Key Break-Glass fixes `acquirer-beta`, and a `kill -9` mid-investigation resumes cleanly. | 2026-11-23 | Not started |
 | 4 | The demo story at the live defense, with the Shoulds that shipped. | 2026-12-03 | Not started |
 
 ## Fronts
@@ -139,12 +152,14 @@ At a phase close, the Priority column keeps the phase's priorities, and each row
 - Provides: None, because there is no other front to use them.
 - Uses: None.
 - Depends on: milestone 0.
-- Stories: US-01 to US-13, US-15 to US-19, and EN-01. US-14 became EN-01.
-- Status: on track. Work starts 2026-10-27.
+- Stories: US-01 to US-13, US-15 to US-22, EN-01, and EN-02. US-14 became EN-01.
+- Status: ahead of schedule. Milestones 0 and 1 are done; next is `alert-intake`. No blockers.
 
 ## Shared files
 
-None. With one front, every file has the same owner. Milestone 0 still creates the shared structure, such as the compose file, the migration layout, the service folders, and the agent `skills/` folder, so that each later feature adds files instead of editing shared ones.
+None between fronts: with one front, every file has the same owner. Milestone 0 created the shared structure, such as the compose file, the migration layout, and the service folders, so that each later feature adds files instead of editing shared ones.
+
+Inside the front, `coordinator` and `investigators` are built at the same time in two worktrees (D-09). Constraint record `agent-seam-ownership` names the files each one owns and the seam files neither edits; `alert-intake` lands every change to those seam files before the two builds start.
 
 ## Contracts
 
@@ -157,6 +172,8 @@ None. Contracts in this roadmap are interfaces between fronts, and there is only
 - The live demo reaches both the reasoning model and Jev through one OpenRouter key. Every gate fails closed, so an OpenRouter outage, a rate limit, or an exhausted credit balance during the defense would stall the demo. Top up the credits before 2026-12-03, rehearse with the deterministic test providers, and keep a recorded run as a fallback.
 - Model answers vary between runs. If the Coordinator wanders during rehearsals, tighten the `AGENTS.md` rules and the specialist skills before tightening the code.
 - The defense machine must run Docker. Check it before 2026-12-03.
+- The parallel `coordinator` and `investigators` builds merge into `main` before `evidence-gate`. If either needs a seam file changed mid-build, both stop for a joint decision, which can cost a day.
+- Models run through OpenRouter with `anthropic/claude-haiku-5.5` for every agent until the team picks the final models (D-12). Rehearse the demo again after any model change.
 
 ## Out of scope
 

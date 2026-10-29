@@ -139,18 +139,23 @@ Scenario: Confirmation blocked
 
 Front: War room. Priority: Must. Feature: `warroom-ui`.
 
-As a responder, I want the chat on the left and the hypotheses, evidence, Break-Glass, and status tabs on the right, so that I can follow the bridge and act on it in one screen.
+As a responder, I want a finished split-screen war room with the bridge chat on the left and the incident's top bar always in view, so that I can follow the bridge and act on it in one screen that behaves like a product I trust.
 
 ```gherkin
 Scenario: Reference chips
   Given the Coordinator posts a message that cites EV-01
   When Alice clicks the EV-01 chip
-  Then the Evidence tab opens with EV-01 in focus
+  Then the right pane opens with EV-01 in focus
 
 Scenario: Switch user
   Given Alice is signed in
   When she switches to Carol in the top bar
   Then the connection reopens as Carol and the controls Carol may not use are disabled
+
+Scenario: Connection lost
+  Given Bob is following the bridge
+  When the connection to warroom-server drops
+  Then the screen says it is reconnecting and keeps the last state readable instead of going blank
 ```
 
 ### US-09 Approve a remediation with two keys
@@ -319,6 +324,75 @@ Scenario: Classifier stops early
   Then it reports the failure instead of counts
 ```
 
+### US-20 Wake the war room from our monitoring platform
+
+Front: War room. Priority: Must. Feature: `alert-intake`.
+
+As the company's platform engineer, I want to point our monitoring platform's alert webhook at the war room, so that an alert starts the investigation without anyone typing.
+
+```gherkin
+Scenario: Alert wakes the war room
+  Given the monitoring platform holds the war room's webhook token
+  When it sends an alert for a saturated database pool
+  Then the war room accepts it and the Coordinator starts on that alert
+
+Scenario: Repeated alert
+  Given the war room already accepted an alert
+  When the monitoring platform sends the same alert again
+  Then the war room accepts it without starting a second investigation
+
+Scenario: Unknown sender
+  Given a request without the webhook token
+  When it reaches the webhook
+  Then the war room rejects it and starts nothing
+```
+
+### US-21 Watch the payment pipeline in the monitoring console
+
+Front: War room. Priority: Must. Feature: `monitoring-console`.
+
+As the company's on-call engineer, I want a monitoring console that shows every card authorization live, with pool and latency charts and the alert rules, so that I see the outage start and know the war room was called.
+
+```gherkin
+Scenario: Live authorizations
+  Given healthy traffic
+  When the on-call engineer opens the monitoring console
+  Then each authorization appears as it happens, with its brand, acquirer, latency, and result
+
+Scenario: Alert fires
+  Given the presenter has started the cascade decoy
+  When requests wait on the sandbox pool longer than the alert rule allows
+  Then the rule turns red and the console shows that the war room's webhook accepted the alert
+
+Scenario: War room unreachable
+  Given the war room is down
+  When the alert rule fires
+  Then the console shows the delivery failure and keeps retrying
+```
+
+### US-22 Review hypotheses, evidence, and approvals in tabs
+
+Front: War room. Priority: Must. Feature: `warroom-tabs`.
+
+As a responder, I want the Hypotheses, Evidence, Break-Glass, and Status & Spec tabs beside the chat, so that I can weigh each hypothesis against its evidence and sign an action without leaving the war room.
+
+```gherkin
+Scenario: Hypothesis with its evidence
+  Given H1 cites EV-01 as contradicting
+  When Alice opens H1 in the Hypotheses tab
+  Then she sees EV-01 with its quote and receipt, and H1 marked by its status
+
+Scenario: Empty ledger
+  Given no evidence has been recorded yet
+  When Bob opens the Evidence tab
+  Then it explains that investigators have not recorded evidence yet, instead of showing an empty table
+
+Scenario: Observer cannot sign
+  Given Carol is signed in as Observer
+  When she opens the Break-Glass tab
+  Then the signing controls are disabled and say why
+```
+
 ## Enablers
 
 ### EN-01 Replay the demo scenarios deterministically
@@ -337,4 +411,22 @@ Scenario: Regression caught
   Given a change that lets one user sign both keys
   When the suite runs
   Then it fails on the Maker and Checker check
+```
+
+### EN-02 Fix the contract between the Coordinator and the investigators
+
+Front: War room. Priority: Must. Feature: `agent-seam`. Enables: US-05, US-07.
+
+The shared shapes, the one investigation task, agent registration, and incident document version 2 land on `main` first, so that `coordinator` and `investigators` can be built at the same time without editing the same files.
+
+```gherkin
+Scenario: Builds stay apart
+  Given the seam is on main
+  When coordinator and investigators are built in two worktrees
+  Then neither edits a file the other owns
+
+Scenario: Off-contract finding
+  Given an investigator returns a finding outside the contract
+  When the task completes
+  Then the task fails instead of handing the Coordinator the finding
 ```
