@@ -8,14 +8,14 @@ Phase 01, new project. Previous phases: None.
 
 During a Sev-1 card-payment outage, responders anchor on the loudest symptom and lose minutes to it. The war room runs AI investigators that may only record receipt-backed evidence, and it lets a remediation run only after two people sign it.
 
-Demo story: Alice, the Incident Commander, and Bob, a Responder, open the war room in two browsers. The presenter starts the cascade decoy from a terminal: an 8-second `acquirer-beta` delay that saturates the sandbox's database pool. The company's monitoring console shows authorizations slowing and the pool filling, and its alert calls the war room's webhook. The Coordinator wakes and opens competing hypotheses, and investigators record receipt-backed evidence that disproves the "database saturated" decoy and points at `acquirer-beta`. Midway through, someone runs `kill -9` on `warroom-server`, and the investigation resumes with nothing lost. The Coordinator drafts a Break-Glass action. Bob signs Key 1, and Alice signs Key 2. The sandbox recovers, and the card TPV bleed drops on screen.
+Demo story: Alice, the Incident Commander, and Bob, a Responder, open the war room in two browsers. The presenter starts the cascade decoy from a terminal: an 8-second `acquirer-beta` delay that saturates the sandbox's database pool. The company's Grafana dashboard shows authorizations slowing and the pool filling, and its alert rule calls the war room's webhook. The Coordinator wakes and opens competing hypotheses, and investigators record receipt-backed evidence that disproves the "database saturated" decoy and points at `acquirer-beta`. Midway through, someone runs `kill -9` on `warroom-server`, and the investigation resumes with nothing lost. The Coordinator drafts a Break-Glass action. Bob signs Key 1, and Alice signs Key 2. The sandbox recovers, and the card TPV bleed drops on screen.
 
 ## Constraints
 
 - Output language: English.
 - Deadline: 2026-12-03, the live defense. The date is fixed, and the cut line moves when time runs short.
 - Developers: 1, Natthan.
-- Must budget: at the 2026-10-28 checkpoint, the remaining Musts take 12 of the 25 working days left (48%), inside the 60% budget at the recalibrated pace. At the kickoff they did not fit at the standard pace.
+- Must budget: at the 2026-10-28 checkpoint, the remaining Musts take 11 of the 25 working days left (44%), inside the 60% budget at the recalibrated pace. At the kickoff they did not fit at the standard pace.
 - Quality bar: every screen is built as a finished, production-grade product, not a demo-only panel (D-10).
 
 ## Schedule
@@ -60,7 +60,7 @@ gantt
     chaos-cascade-decoy US-03          :done, crit, decoy, 2026-10-28, 1d
     agent-seam EN-02                   :done, crit, seam, 2026-10-28, 1d
     alert-intake US-20                 :crit, intake, 2026-10-29, 1d
-    monitoring-console US-21           :crit, mon, after intake, 2d
+    monitoring-stack US-21             :crit, mon, after intake, 1d
     coordinator US-07                  :crit, coord, after mon, 2d
     investigators US-05                :crit, inv, after mon, 2d
     evidence-gate US-06                :crit, gate, after coord inv, 1d
@@ -87,7 +87,7 @@ The schedule rests on these assumptions:
 - Finished features show their actual dates, one day each.
 - The chart skips weekends. The team works every weekday, holidays included.
 - `coordinator` and `investigators` run on the same days in two Git worktrees, both supervised by Natthan, and merge before `evidence-gate` (D-09). It is the one place the chart gives one developer two tasks on a day.
-- The extras run in reverse cut order, so the last feature to cut is built first. Under this plan the Musts end on 2026-11-13, every Should ends by 2026-11-26, and both Coulds by 2026-11-30, three working days before the defense.
+- The extras run in reverse cut order, so the last feature to cut is built first. Under this plan the Musts end on 2026-11-12, every Should ends by 2026-11-25, and both Coulds by 2026-11-27, four working days before the defense.
 - No Must waits for a Could, so cutting `steer-stop` frees no Must date. It shortens the tail of the extras.
 - One developer means little slack outside the parallel pair. A one-day slip in any Must moves every later bar by one day.
 
@@ -99,7 +99,7 @@ The schedule rests on these assumptions:
 | Must | Card authorization sandbox with BIN routing, two acquirers, and read-only telemetry | `card-auth-sandbox` | M | US-02 | War room |
 | Must | Groundwork: the Coordinator–investigator contract, agent registration, and incident document version 2 | `agent-seam` | S | EN-02 | War room |
 | Must | Alert webhook that wakes the war room, plus the agent wiring both agent features need | `alert-intake` | M | US-20 | War room |
-| Must | The company's monitoring console: live authorizations, charts, and an alert rule that calls the war room | `monitoring-console` | L | US-21 | War room |
+| Must | The company's monitoring stack: Grafana dashboards over Prometheus metrics and the payments database, and an alert rule that calls the war room | `monitoring-stack` | M | US-21 | War room |
 | Must | Scenario A, the cascade decoy fault | `chaos-cascade-decoy` | S | US-03 | War room |
 | Must | Incident state, phases, roster, and Chord role permissions | `warroom-state` | M | US-04 | War room |
 | Must | Four specialist investigators with receipts and sanitization | `investigators` | L | US-05 | War room |
@@ -138,7 +138,7 @@ At a phase close, the Priority column keeps the phase's priorities, and each row
 | --- | --- | --- | --- |
 | 0 | Walking skeleton: `docker compose up` starts PostgreSQL, `card-auth-sandbox`, and `warroom-server`. A browser opens the war room shell over a Chord WebSocket, and the build and test commands run. | 2026-10-28 | Done 2026-10-27 |
 | 1 | The presenter starts the cascade decoy and the sandbox pool saturates, while Alice and Bob see the same incident state live in two browsers, each with their own role permissions. | 2026-11-04 | Done 2026-10-28 |
-| 2 | The monitoring console's alert wakes the war room and opens competing hypotheses. Investigators record receipt-backed evidence that disproves the database decoy, and the gate rejects speculative or unquoted evidence. | 2026-11-13 | Not started |
+| 2 | The Grafana alert wakes the war room and opens competing hypotheses. Investigators record receipt-backed evidence that disproves the database decoy, and the gate rejects speculative or unquoted evidence. | 2026-11-13 | Not started |
 | 3 | The whole demo story runs in the finished split-screen UI: Two-Key Break-Glass fixes `acquirer-beta`, and a `kill -9` mid-investigation resumes cleanly. | 2026-11-23 | Not started |
 | 4 | The demo story at the live defense, with the Shoulds that shipped. | 2026-12-03 | Not started |
 

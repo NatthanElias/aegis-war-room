@@ -347,27 +347,27 @@ Scenario: Unknown sender
   Then the war room rejects it and starts nothing
 ```
 
-### US-21 Watch the payment pipeline in the monitoring console
+### US-21 Watch the payment pipeline in Grafana
 
-Front: War room. Priority: Must. Feature: `monitoring-console`.
+Front: War room. Priority: Must. Feature: `monitoring-stack`.
 
-As the company's on-call engineer, I want a monitoring console that shows every card authorization live, with pool and latency charts and the alert rules, so that I see the outage start and know the war room was called.
+As the company's on-call engineer, I want a Grafana dashboard that shows card authorizations, pool use, and acquirer latency, with an alert rule wired to the war room, so that I see the outage start and know the war room was called.
 
 ```gherkin
-Scenario: Live authorizations
+Scenario: Healthy pipeline
   Given healthy traffic
-  When the on-call engineer opens the monitoring console
-  Then each authorization appears as it happens, with its brand, acquirer, latency, and result
+  When the on-call engineer opens the payments dashboard
+  Then recent authorizations appear with their brand, acquirer, latency, and result, and the charts stay in their normal range
 
 Scenario: Alert fires
   Given the presenter has started the cascade decoy
   When requests wait on the sandbox pool longer than the alert rule allows
-  Then the rule turns red and the console shows that the war room's webhook accepted the alert
+  Then the rule turns to firing and the war room accepts the alert
 
 Scenario: War room unreachable
   Given the war room is down
   When the alert rule fires
-  Then the console shows the delivery failure and keeps retrying
+  Then Grafana shows the failed notification, and the alert reaches the war room once it is back
 ```
 
 ### US-22 Review hypotheses, evidence, and approvals in tabs

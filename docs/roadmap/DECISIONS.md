@@ -36,9 +36,14 @@ Checkpoint after milestone 1, agreed by Natthan:
 - D-10 🔵 **[REQUIRED]** IN THE CONTEXT OF *a war room that is judged as a finished product*, WE CHOSE *to build every screen to a production-grade UI and UX bar, with designed empty, loading, error, and unauthorized states* TO ACHIEVE *an app that looks and behaves like an expensive product*, ACCEPTING *more time for every UI feature*.
 - D-11 🟡 **[CHANGED]** IN THE CONTEXT OF *finishing about 7 planned days of features in 2 calendar days*, WE CHOSE *a pace of 1 day for S, 1 for M, and 2 for L* TO ACHIEVE *a schedule that matches the measured pace with half of it held in reserve*, ACCEPTING *that a slower stretch eats the reserve first* (replaces D-05).
 - D-12 🟢 **[CHOICE]** IN THE CONTEXT OF *choosing the agents' models*, WE CHOSE *to call every model through OpenRouter, with `anthropic/claude-haiku-5.5` for all agents until the final models are picked* TO ACHIEVE *one account and model changes without code changes*, ACCEPTING *weaker reasoning until the final models are chosen*.
-- D-13 🔵 **[REQUIRED]** IN THE CONTEXT OF *how an incident reaches the war room*, WE CHOSE *to accept alerts only through an authenticated webhook that the company's monitoring platform calls, and to add a monitoring console to the demo that plays that platform* TO ACHIEVE *the integration Datadog, Grafana, Dynatrace, and PagerDuty already support*, ACCEPTING *a new Must, `monitoring-console`, before the agents*.
 - D-14 🟢 **[CHOICE]** IN THE CONTEXT OF *a UI Must too large for one feature at the production bar*, WE CHOSE *to split it into `warroom-ui` for the design system, layout, top bar, and chat, and `warroom-tabs` for the four tabs* TO ACHIEVE *time to finish each screen properly*.
-- D-15 🟢 **[CHOICE]** IN THE CONTEXT OF *a demo story that still had Bob injecting the fault*, WE CHOSE *to open it with the presenter's terminal command, the monitoring console, and its alert waking the Coordinator* TO ACHIEVE *a demo story that matches D-08 and D-13*.
+
+### 2026-10-28
+
+alert-intake plan review, agreed by Natthan:
+
+- D-16 🟡 **[CHANGED]** IN THE CONTEXT OF *how an incident reaches the war room*, WE CHOSE *to accept alerts only through authenticated webhooks, with one adapter per monitoring source, and to run Grafana with Prometheus as the company's monitoring platform in the demo* TO ACHIEVE *the integration companies already run, with no monitoring app of our own to build*, ACCEPTING *two more containers and an alert that arrives tens of seconds after the fault* (replaces D-13).
+- D-17 🟡 **[CHANGED]** IN THE CONTEXT OF *a demo story that still had Bob injecting the fault*, WE CHOSE *to open it with the presenter's terminal command, the Grafana dashboard, and its alert rule waking the Coordinator* TO ACHIEVE *a demo story that matches D-08 and D-16* (replaces D-15).
 
 ## Replaced
 
@@ -47,3 +52,10 @@ Checkpoint after milestone 1, agreed by Natthan:
 Phase 01 kickoff, agreed by Natthan:
 
 - D-05 🟢 **[CHOICE]** IN THE CONTEXT OF *turning sizes into working days*, WE CHOSE *an AI-assisted pace of 1 day for S, 2 for M, and 3 for L* TO ACHIEVE *a schedule where the Musts end on 2026-11-23*, ACCEPTING *that the standard pace would overrun the deadline* (replaced by D-11).
+
+### 2026-10-28
+
+Checkpoint after milestone 1, agreed by Natthan:
+
+- D-13 🔵 **[REQUIRED]** IN THE CONTEXT OF *how an incident reaches the war room*, WE CHOSE *to accept alerts only through an authenticated webhook that the company's monitoring platform calls, and to add a monitoring console to the demo that plays that platform* TO ACHIEVE *the integration Datadog, Grafana, Dynatrace, and PagerDuty already support*, ACCEPTING *a new Must, `monitoring-console`, before the agents* (replaced by D-16).
+- D-15 🟢 **[CHOICE]** IN THE CONTEXT OF *a demo story that still had Bob injecting the fault*, WE CHOSE *to open it with the presenter's terminal command, the monitoring console, and its alert waking the Coordinator* TO ACHIEVE *a demo story that matches D-08 and D-13* (replaced by D-17).
