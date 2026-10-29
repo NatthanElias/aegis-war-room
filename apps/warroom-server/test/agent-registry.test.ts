@@ -1,12 +1,39 @@
+import { fileURLToPath } from "node:url";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createModels } from "@earendil-works/pi-ai/models";
 import { Harness, MemoryStorage, type Registry } from "@earendil-works/pi-durable";
 import type { InvestigationFinding, InvestigationRequest } from "@warroom/contracts";
+import pg from "pg";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { testAgentDeps } from "../../../test-support/agent-deps.ts";
+import { createTestDatabase } from "../../../test-support/database.ts";
 import { fakeInvestigators } from "../../../test-support/fake-investigators.ts";
 import { makeTempIncidents } from "../../../test-support/incident-server.ts";
+import { runMigrations } from "../../card-auth-sandbox/src/migrations.ts";
+import { createCoordinatorExtension } from "../src/agents/coordinator.ts";
 import { createAgentRegistry, launchInvestigation } from "../src/agents/index.ts";
+import { createInvestigatorsExtension } from "../src/agents/investigators.ts";
+import { createDiagPool } from "../src/diag-pool.ts";
 import { startServer } from "../src/server.ts";
+
+const migrationsDir = fileURLToPath(new URL("../../card-auth-sandbox/migrations", import.meta.url));
+
+// Why: wrapping the factories and the pool factory records what the server hands them without changing what they do.
+vi.mock("../src/agents/coordinator.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/agents/coordinator.ts")>();
+  return { ...original, createCoordinatorExtension: vi.fn(original.createCoordinatorExtension) };
+});
+vi.mock("../src/agents/investigators.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/agents/investigators.ts")>();
+  return {
+    ...original,
+    createInvestigatorsExtension: vi.fn(original.createInvestigatorsExtension),
+  };
+});
+vi.mock("../src/diag-pool.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/diag-pool.ts")>();
+  return { ...original, createDiagPool: vi.fn(original.createDiagPool) };
+});
 
 // Why: the server does not expose its Harness, so this spy keeps the one it opens and the test reads the
 // root conversation's resolved agent from it.
@@ -29,6 +56,9 @@ vi.mock("@earendil-works/pi-durable", async (importOriginal) => {
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
   opened.length = 0;
+  vi.mocked(createCoordinatorExtension).mockClear();
+  vi.mocked(createInvestigatorsExtension).mockClear();
+  vi.mocked(createDiagPool).mockClear();
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
@@ -69,6 +99,56 @@ describe("agent registry", () => {
     ]);
   });
 
+  test("factories receive dependencies", async () => {
+    const db = await createTestDatabase();
+    cleanups.push(() => db.drop());
+    const admin = new pg.Client({ connectionString: db.url });
+    await admin.connect();
+    try {
+      await runMigrations(admin, migrationsDir);
+    } finally {
+      await admin.end();
+    }
+    const incidents = await makeTempIncidents();
+    cleanups.push(incidents.remove);
+
+    const server = await startServer({
+      ...incidents.serverOptions(),
+      databaseUrl: db.roleUrl("warroom_diag"),
+      sandboxUrl: "http://sandbox.test:3001",
+    });
+    cleanups.push(() => server.close());
+
+    expect(vi.mocked(createCoordinatorExtension)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createInvestigatorsExtension)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(createDiagPool)).toHaveBeenCalledTimes(1);
+    const pool = vi.mocked(createDiagPool).mock.results[0]?.value;
+    expect(pool).toBeDefined();
+    const received = [
+      vi.mocked(createCoordinatorExtension).mock.calls[0]?.[0],
+      vi.mocked(createInvestigatorsExtension).mock.calls[0]?.[0],
+    ];
+    expect(received).toHaveLength(2);
+    for (const deps of received) {
+      expect(deps?.diagPool).toBe(pool);
+      expect(deps?.sandboxUrl).toBe("http://sandbox.test:3001");
+      expect(Object.keys(deps?.agentModels ?? {}).sort()).toEqual([
+        "acquirer",
+        "coordinator",
+        "db",
+        "deploy",
+        "logs",
+      ]);
+    }
+    const harness = opened[0] as (typeof opened)[number];
+    const agent = await (await harness.root(BACKGROUND_CONTEXT)).agent(BACKGROUND_CONTEXT);
+    expect(
+      agent.extensions
+        .map((extension) => extension.name)
+        .filter((name) => name.startsWith("warroom.")),
+    ).toEqual(["warroom.coordinator", "warroom.investigators"]);
+  });
+
   test("fake replaces the stub", async () => {
     const script = (r: InvestigationRequest): InvestigationFinding =>
       r.specialist === "acquirer"
@@ -86,7 +166,10 @@ describe("agent registry", () => {
             summary: "the pool has idle connections",
             evidenceIds: [],
           };
-    const registry = createAgentRegistry({ investigators: fakeInvestigators(script) });
+    const registry = createAgentRegistry({
+      deps: testAgentDeps(),
+      investigators: fakeInvestigators(script),
+    });
     const { harness, root } = await openHarness(registry);
     const acquirer = await root.commit(
       (tx) => launchInvestigation(tx, request({ hypothesisId: "H1", specialist: "acquirer" })),
@@ -139,7 +222,10 @@ describe("agent registry", () => {
         summary: "unsure",
         evidenceIds: [],
       }) as unknown as InvestigationFinding;
-    const registry = createAgentRegistry({ investigators: fakeInvestigators(offContract) });
+    const registry = createAgentRegistry({
+      deps: testAgentDeps(),
+      investigators: fakeInvestigators(offContract),
+    });
     const { harness, root } = await openHarness(registry);
     const id = await root.commit(
       (tx) => launchInvestigation(tx, request({ specialist: "logs" })),

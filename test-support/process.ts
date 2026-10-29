@@ -9,8 +9,16 @@ export interface RunResult {
   readonly stderr: string;
 }
 
-/** Runs a TypeScript entry file the way production does (Node type stripping) and waits for it to exit. */
-export function runNode(script: string, env: Record<string, string>): Promise<RunResult> {
+/**
+ * Runs a TypeScript entry file the way production does (Node type stripping) and waits for it to exit.
+ * With `timeoutMs`, a process still running then is killed and reported with a `null` code, so a script that
+ * should have exited fails the caller's assertions instead of hanging the test.
+ */
+export function runNode(
+  script: string,
+  env: Record<string, string>,
+  timeoutMs?: number,
+): Promise<RunResult> {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [script], {
       cwd: repoRoot,
@@ -24,7 +32,12 @@ export function runNode(script: string, env: Record<string, string>): Promise<Ru
     child.stderr.on("data", (chunk) => {
       stderr += chunk;
     });
+    const killer =
+      timeoutMs === undefined ? undefined : setTimeout(() => child.kill("SIGKILL"), timeoutMs);
     child.on("error", reject);
-    child.on("close", (code) => resolve({ code, stdout, stderr }));
+    child.on("close", (code) => {
+      clearTimeout(killer);
+      resolve({ code, stdout, stderr });
+    });
   });
 }

@@ -11,7 +11,7 @@ import {
   SERVER_PRINCIPAL,
 } from "@warroom/contracts";
 import { WebSocketServer } from "ws";
-import { createAgentRegistry } from "./agents/index.ts";
+import { type AgentDeps, createAgentRegistry } from "./agents/index.ts";
 import { type AlertSettings, createAlertHandler } from "./alerts/index.ts";
 import { monitorDatabase } from "./database-monitor.ts";
 import { createDiagPool } from "./diag-pool.ts";
@@ -66,12 +66,17 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   // explicit models can never reach OpenRouter, whatever the process environment holds.
   const defaults = resolveModels({});
   const agentModels = options.agents?.agentModels ?? defaults.agentModels;
+  // Why: the pool exists before the registry, because the registry hands it to the agent extensions.
+  const pool = options.databaseUrl ? createDiagPool(options.databaseUrl) : undefined;
+  const deps: AgentDeps = { diagPool: pool, sandboxUrl: options.sandboxUrl, agentModels };
   const store = await openIncidentStore(options.incidentsDir, options.incidentId, {
-    registry: options.agents?.registry ?? createAgentRegistry(),
+    registry: options.agents?.registry ?? createAgentRegistry({ deps }),
     models: options.agents?.models ?? defaults.models,
     model: agentModels.coordinator,
+  }).catch(async (error: unknown) => {
+    await pool?.end();
+    throw error;
   });
-  const pool = options.databaseUrl ? createDiagPool(options.databaseUrl) : undefined;
   const monitor = pool ? monitorDatabase(pool) : undefined;
 
   const chord = createHost<Principal>({ name: "server", self: SERVER_PRINCIPAL, principalKey });

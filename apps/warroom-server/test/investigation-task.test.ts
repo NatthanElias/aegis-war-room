@@ -3,6 +3,7 @@ import { createModels } from "@earendil-works/pi-ai/models";
 import { Harness, MemoryStorage, type Registry } from "@earendil-works/pi-durable";
 import type { InvestigationRequest } from "@warroom/contracts";
 import { afterEach, describe, expect, test } from "vitest";
+import { testAgentDeps } from "../../../test-support/agent-deps.ts";
 import { createAgentRegistry, launchInvestigation } from "../src/agents/index.ts";
 
 const cleanups: Array<() => Promise<void>> = [];
@@ -31,7 +32,7 @@ const request = (overrides: Partial<InvestigationRequest> = {}): InvestigationRe
 
 describe("warroom.investigation task", () => {
   test("rejects an invalid request", async () => {
-    const { harness, root } = await openHarness(createAgentRegistry());
+    const { harness, root } = await openHarness(createAgentRegistry({ deps: testAgentDeps() }));
     const liveTasks = async () => {
       const graph = await harness.taskGraph(BACKGROUND_CONTEXT);
       const nodes = Object.values(graph.value.tasks).map(({ kind, background }) => ({
@@ -55,7 +56,7 @@ describe("warroom.investigation task", () => {
   });
 
   test("stub finishes inconclusive", async () => {
-    const { harness, root } = await openHarness(createAgentRegistry());
+    const { harness, root } = await openHarness(createAgentRegistry({ deps: testAgentDeps() }));
     const first = await root.commit(
       (tx) => launchInvestigation(tx, request({ hypothesisId: "H1", specialist: "db" })),
       BACKGROUND_CONTEXT,
