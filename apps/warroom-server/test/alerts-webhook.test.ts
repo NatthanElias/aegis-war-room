@@ -7,7 +7,6 @@ import {
   grafanaBody,
   startAlertServer,
 } from "../../../test-support/alert-server.ts";
-import { MAX_BODY_BYTES } from "../src/alerts/index.ts";
 
 const cleanups: Array<() => Promise<void>> = [];
 afterEach(async () => {
@@ -215,7 +214,9 @@ describe("alert webhook", () => {
 
     const notJson = await post("{not json");
     const noAlerts = await post({ other: 1 });
-    const tooLarge = await post(padded(MAX_BODY_BYTES + 1));
+    const oversizedBody = padded(262_145);
+    expect(Buffer.byteLength(oversizedBody)).toBe(262_145);
+    const tooLarge = await post(oversizedBody);
     const plain = await post(grafanaBody(grafanaAlert("a1b2")), {
       headers: { "content-type": "text/plain" },
     });
@@ -231,9 +232,9 @@ describe("alert webhook", () => {
     expect(plain.status).toBe(415);
     expect(plain.body).toEqual({ error: "unsupported_media_type" });
     expect(await alerts()).toEqual({});
-    // Control: a body of exactly the limit is read and stored, so 413 above is about the extra byte.
-    const atLimit = padded(MAX_BODY_BYTES);
-    expect(Buffer.byteLength(atLimit)).toBe(MAX_BODY_BYTES);
+    // Why: independently pinned bytes prove the protocol boundary even if the production limit changes.
+    const atLimit = padded(262_144);
+    expect(Buffer.byteLength(atLimit)).toBe(262_144);
     expect((await post(atLimit)).status).toBe(202);
   });
 

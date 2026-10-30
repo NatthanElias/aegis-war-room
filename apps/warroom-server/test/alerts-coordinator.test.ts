@@ -64,7 +64,11 @@ describe("waking the Coordinator", () => {
     const alertServer = await start();
     const { post } = alertServer;
 
-    await post(grafanaBody(grafanaAlert("a1b2", { labels: { alertname: "High memory usage" } })));
+    await post(
+      grafanaBody(
+        grafanaAlert("a1b2", { labels: { alertname: "High memory usage", severity: "critical" } }),
+      ),
+    );
     await settle(alertServer, "alert:AL-01");
     const { users, submissions } = await rootInputs(alertServer, ["alert:AL-01"]);
 
@@ -74,6 +78,13 @@ describe("waking the Coordinator", () => {
     expect(input?.text.startsWith("Monitoring alert AL-01 from grafana")).toBe(true);
     expect(input?.text).toContain("High memory usage");
     expect(input?.text).toContain("untrusted text");
+    const lines = input?.text.split("\n");
+    expect(lines).toContain('- Title (untrusted text): "High memory usage"');
+    expect(lines).toContain('- Severity (untrusted text): "critical"');
+    expect(lines).toContain('- Started at (untrusted text): "2026-10-28T12:00:00Z"');
+    expect(lines).toContain('- Summary (untrusted text): "Summary of a1b2"');
+    expect(lines).toContain('- URL (untrusted text): "https://grafana.example/alerting/rule/edit"');
+    expect(lines).toContain("- Labels (untrusted text):");
   });
 
   test("one input per alert", async () => {

@@ -28,28 +28,34 @@ async function getHealthz(port: number): Promise<{ status: number; body: unknown
 
 /**
  * Starts a service entry file as a child process (the way compose does) and waits until `/healthz` answers at all.
- * `env.PORT` is chosen here.
+ * The child binds port 0 and announces its actual port before readiness is checked.
  */
 export async function startService(
   script: string,
   env: Record<string, string>,
 ): Promise<RunningService> {
-  const port = await freePort();
+  let port = 0;
   const child = spawn(process.execPath, [script], {
     cwd: repoRoot,
-    env: { ...process.env, ...env, PORT: String(port) },
+    env: { ...process.env, ...env, PORT: "0" },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let output = "";
   child.stdout?.on("data", (chunk) => {
     output += chunk;
+    // Hazard: reserving then releasing a port lets another test bind it before this child starts.
+    // Why: both service mains announce the port after listen, so readiness belongs to this child.
+    const announced = /listening on ([1-9][0-9]*)/.exec(output);
+    if (announced) port = Number(announced[1]);
   });
   child.stderr?.on("data", (chunk) => {
     output += chunk;
   });
 
   const service: RunningService = {
-    port,
+    get port() {
+      return port;
+    },
     child,
     pid: child.pid ?? -1,
     get running() {
@@ -68,14 +74,17 @@ export async function startService(
   for (;;) {
     if (!service.running) throw new Error(`${script} exited early:\n${output}`);
     try {
-      await getHealthz(port);
-      return service;
-    } catch {
-      if (Date.now() > deadline) {
-        await service.stop();
-        throw new Error(`${script} never answered /healthz:\n${output}`);
+      if (port !== 0) {
+        await getHealthz(port);
+        return service;
       }
-      await sleep(50);
+    } catch {
+      // Context: this child's port may be listening before its health endpoint is ready.
     }
+    if (Date.now() > deadline) {
+      await service.stop();
+      throw new Error(`${script} never announced a port and answered /healthz:\n${output}`);
+    }
+    await sleep(50);
   }
 }

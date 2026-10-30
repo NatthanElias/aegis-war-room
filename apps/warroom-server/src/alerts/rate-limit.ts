@@ -23,7 +23,7 @@ export function createRateLimiter(options: {
     throw new Error(`alert rate limit must be a whole number of at least 1, got ${limit}`);
   }
   let accepted: number[] = [];
-  // An alert counts until it is `windowMs` old, so a slot frees exactly at its age of one window.
+  // Context: an alert counts until it is `windowMs` old, so a slot frees exactly at its age of one window.
   const prune = () => {
     const cutoff = now() - windowMs;
     accepted = accepted.filter((at) => at > cutoff);
@@ -33,7 +33,7 @@ export function createRateLimiter(options: {
       prune();
       const excess = accepted.length + count - limit;
       if (excess <= 0) return undefined;
-      // The `excess`-th oldest counted alert must expire before the request fits; with none that can free
+      // Why: the `excess`-th oldest counted alert must expire before the request fits; with none that can free
       // enough slots the wait is the whole window.
       const blocker = accepted[excess - 1];
       const waitMs = blocker === undefined ? windowMs : blocker + windowMs - now();

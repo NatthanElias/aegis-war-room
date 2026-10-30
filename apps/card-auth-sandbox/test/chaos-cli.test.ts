@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { createServer, type Server, type Socket } from "node:net";
+import { createConnection, createServer, type Server, type Socket } from "node:net";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
 import { repoRoot } from "../../../test-support/process.ts";
@@ -67,15 +67,20 @@ async function putScenario(chaosPort: number, scenario: string): Promise<void> {
   expect(response.status).toBe(200);
 }
 
-/** A TCP listener that counts connections and never answers; with `hangUp` it closes each connection at once. */
+/** A TCP listener that counts chaos HTTP requests and never answers; `hangUp` closes after the first data. */
 async function tcpListener(
   options: { hangUp?: boolean } = {},
-): Promise<{ port: number; connections(): number }> {
+): Promise<{ port: number; requests(): number }> {
   const sockets: Socket[] = [];
+  let requests = 0;
   const server: Server = createServer((socket) => {
     sockets.push(socket);
     socket.on("error", () => undefined);
-    if (options.hangUp) socket.destroy();
+    // Why: unrelated loopback probes must not count as requests made by the presenter CLI.
+    socket.once("data", (chunk: Buffer) => {
+      if (/^(GET|PUT) \/chaos\/scenario /.test(chunk.toString("latin1"))) requests++;
+      if (options.hangUp) socket.destroy();
+    });
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   harness.onCleanup(async () => {
@@ -84,7 +89,7 @@ async function tcpListener(
   });
   return {
     port: (server.address() as { port: number }).port,
-    connections: () => sockets.length,
+    requests: () => requests,
   };
 }
 
@@ -129,6 +134,14 @@ describe("chaos presenter command", () => {
 
   test("usage errors", async () => {
     const spy = await tcpListener({ hangUp: true });
+    // Context: local preview tools probe listener roots; those requests are unrelated to the CLI command.
+    await new Promise<void>((resolve, reject) => {
+      const probe = createConnection({ host: "127.0.0.1", port: spy.port }, () => {
+        probe.end("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n");
+      });
+      probe.on("error", reject);
+      probe.once("close", () => resolve());
+    });
     const usageErrors = [[], ["start"], ["cascade-decoy", "extra"]];
     expect(usageErrors).toHaveLength(3);
 
@@ -140,11 +153,11 @@ describe("chaos presenter command", () => {
         stderr: USAGE_LINE,
       });
     }
-    expect(spy.connections()).toBe(0);
+    expect(spy.requests()).toBe(0);
 
-    // Why: the spy must see a real request for the earlier no-connection assertion to prove anything.
+    // Why: the spy must see a real request for the earlier no-request assertion to prove anything.
     await runCli(["status"], spy.port);
-    expect(spy.connections()).toBe(1);
+    expect(spy.requests()).toBe(1);
   });
 
   test("unreachable control port", async () => {
@@ -164,7 +177,7 @@ describe("chaos presenter command", () => {
       stderr: `chaos: cannot reach the sandbox control port at 127.0.0.1:${silent.port}\n`,
     });
     expect(hung.ms).toBeLessThan(3000);
-    // Why: an accepted connection proves the exit above came from the timeout, not a refusal.
-    expect(silent.connections()).toBeGreaterThanOrEqual(1);
+    // Why: a received chaos request proves the exit above came from the timeout, not a refusal.
+    expect(silent.requests()).toBeGreaterThanOrEqual(1);
   });
 });

@@ -35,8 +35,7 @@ vi.mock("../src/diag-pool.ts", async (importOriginal) => {
   return { ...original, createDiagPool: vi.fn(original.createDiagPool) };
 });
 
-// Why: the server does not expose its Harness, so this spy keeps the one it opens and the test reads the
-// root conversation's resolved agent from it.
+// Why: this spy records the real Harness opened by startup so registry assertions inspect the actual root agent.
 const opened: Array<Awaited<ReturnType<typeof Harness.open>>> = [];
 vi.mock("@earendil-works/pi-durable", async (importOriginal) => {
   const original = await importOriginal<typeof import("@earendil-works/pi-durable")>();

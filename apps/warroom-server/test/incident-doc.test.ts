@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { openNodeSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/node";
@@ -13,6 +14,12 @@ import {
 import { type RunningService, startService } from "../../../test-support/service.ts";
 import { runMigrations } from "../../card-auth-sandbox/src/migrations.ts";
 import { startServer } from "../src/server.ts";
+
+// Why: wrap the real spawn to pin atomic kernel port allocation in the crash/startup proofs.
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  return { ...original, spawn: vi.fn(original.spawn) };
+});
 
 const mainScript = fileURLToPath(new URL("../src/main.ts", import.meta.url));
 const migrationsDir = fileURLToPath(new URL("../../card-auth-sandbox/migrations", import.meta.url));
@@ -130,6 +137,10 @@ describe("app.warroom document", () => {
     const second = await start();
     const bob = await openIncident(second.port, "bob");
     expect(bob.latest().phase).toBe("TRIAGE");
+    expect(vi.mocked(spawn).mock.calls.map(([, , options]) => options?.env?.PORT)).toEqual([
+      "0",
+      "0",
+    ]);
     bob.close();
   });
 });

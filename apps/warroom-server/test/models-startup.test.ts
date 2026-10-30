@@ -3,13 +3,21 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import pg from "pg";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { sign } from "../../../test-support/alert-server.ts";
 import { createTestDatabase } from "../../../test-support/database.ts";
 import { repoRoot, runNode } from "../../../test-support/process.ts";
-import { freePort, sleep } from "../../../test-support/service.ts";
+import { sleep } from "../../../test-support/service.ts";
 import { runMigrations } from "../../card-auth-sandbox/src/migrations.ts";
+import { openIncidentStore } from "../src/incident-store.ts";
+
+// Why: wrap the real spawn to pin atomic kernel port allocation in the crash/startup proofs.
+vi.mock("node:child_process", async (importOriginal) => {
+  const original = await importOriginal<typeof import("node:child_process")>();
+  return { ...original, spawn: vi.fn(original.spawn) };
+});
 
 const mainScript = fileURLToPath(new URL("../src/main.ts", import.meta.url));
 const migrationsDir = fileURLToPath(new URL("../../card-auth-sandbox/migrations", import.meta.url));
@@ -38,6 +46,7 @@ const cleanEnv = (): Record<string, string> => ({
 interface Main {
   readonly port: number;
   readonly child: ChildProcess;
+  readonly incidentsDir: string;
   output(): string;
 }
 
@@ -54,7 +63,7 @@ async function startMain(overrides: Record<string, string>): Promise<Main> {
   }
   const incidentsDir = await mkdtemp(join(tmpdir(), "wr-startup-"));
   cleanups.push(() => rm(incidentsDir, { recursive: true, force: true }));
-  const port = await freePort();
+  let port = 0;
   const child = spawn(process.execPath, [mainScript], {
     cwd: repoRoot,
     env: {
@@ -64,7 +73,7 @@ async function startMain(overrides: Record<string, string>): Promise<Main> {
       INCIDENTS_DIR: incidentsDir,
       INCIDENT_ID: "test-inc",
       SANDBOX_URL: "http://127.0.0.1:1",
-      PORT: String(port),
+      PORT: "0",
       ...overrides,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -72,6 +81,9 @@ async function startMain(overrides: Record<string, string>): Promise<Main> {
   let output = "";
   child.stdout?.on("data", (chunk) => {
     output += chunk;
+    // Why: only the child's bound port can prove this process is healthy; a released reservation can be stolen.
+    const announced = /warroom-server listening on ([1-9][0-9]*)/.exec(output);
+    if (announced) port = Number(announced[1]);
   });
   child.stderr?.on("data", (chunk) => {
     output += chunk;
@@ -86,14 +98,14 @@ async function startMain(overrides: Record<string, string>): Promise<Main> {
   for (;;) {
     if (child.exitCode !== null) throw new Error(`main.ts exited early:\n${output}`);
     try {
-      if ((await fetch(`http://127.0.0.1:${port}/healthz`)).status === 200) break;
+      if (port !== 0 && (await fetch(`http://127.0.0.1:${port}/healthz`)).status === 200) break;
     } catch {
-      // not listening yet
+      // Context: the child has not bound its HTTP port yet.
     }
     if (Date.now() > deadline) throw new Error(`main.ts never answered /healthz 200:\n${output}`);
     await sleep(100);
   }
-  return { port, child, output: () => output };
+  return { port, child, incidentsDir, output: () => output };
 }
 
 const alertBody = (fingerprint: string) =>
@@ -116,6 +128,23 @@ describe("warroom-server startup", () => {
     expect(health.status).toBe(200);
     expect(main.output()).toContain("Coordinator offline: OPENROUTER_API_KEY is not set");
 
+    const configured = await startMain({
+      WARROOM_MODEL_COORDINATOR: "anthropic/claude-sonnet-5.5",
+    });
+    const exited = new Promise<void>((resolve) => configured.child.once("exit", () => resolve()));
+    configured.child.kill("SIGTERM");
+    await exited;
+    // Why: reopen without model options to inspect what the real entry point stored, without submitting paid input.
+    const persisted = await openIncidentStore(configured.incidentsDir, "test-inc");
+    try {
+      expect((await persisted.root.agent(BACKGROUND_CONTEXT)).model).toEqual({
+        provider: "openrouter",
+        modelId: "anthropic/claude-sonnet-5.5",
+      });
+    } finally {
+      await persisted.close();
+    }
+
     const failed = await runNode(
       mainScript,
       {
@@ -130,6 +159,11 @@ describe("warroom-server startup", () => {
     expect(failed.code).not.toBe(0);
     expect(failed.code).not.toBeNull();
     expect(failed.stderr).toContain("unknown model anthropic/claude-nope");
+    expect(vi.mocked(spawn).mock.calls.map(([, , options]) => options?.env?.PORT)).toEqual([
+      "0",
+      "0",
+      "0",
+    ]);
   });
 
   test("a key silences the offline notice", async () => {

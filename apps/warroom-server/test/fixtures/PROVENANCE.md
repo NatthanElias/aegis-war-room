@@ -1,6 +1,6 @@
 # Alert fixture provenance
 
-Both files are webhook bodies for `POST /alerts/grafana`. Neither is edited by hand after extraction.
+Both files are webhook bodies for `POST /alerts/grafana`. The Grafana file is extracted from its concrete documented example. The Alertmanager file instantiates its documented schema with the values described below.
 
 ## grafana-firing.json
 
