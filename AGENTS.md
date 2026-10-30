@@ -24,6 +24,8 @@ Repositories: single.
 | --- | --- |
 | Change design rationale | `docs/architecture.md` |
 | Change schemas, pools, roles, or tool contracts | `docs/architecture-reference.md` |
+| Change alert intake or add a monitoring integration | `docs/alert-webhook.md` |
+| Review security controls and known gaps | `docs/security.md` |
 | Look up protocol or Jev background | `docs/research/` |
 <!-- /setup:routes -->
 
@@ -60,3 +62,4 @@ Work on the user's current checkout. Never switch branches or revisions or creat
 - Skill sync: reinstall the project skills from the skills repository's per-harness `project/` collection, then rerun workflow-setup. List each local edit to an installed skill file here as `- Override <skill>/<file>: <reason>.`
 - Orchestration: the Codex root orchestrator always uses the T3 mode of the global `$orchestrate` skill and its T3 roster, never native mode or the custom agents in `.codex/agents/`. A worker dispatched through T3 follows its brief instead.
 - No T3: if the session does not expose T3's `delegate_task`, do not fall back to native subagents; tell the user, and work in the main session only if they agree.
+- Grafana check: after changing `apps/warroom-server/src/alerts/**` or `scripts/grafana/**`, also run `npm run check:grafana`; it starts a real Grafana container in Docker.

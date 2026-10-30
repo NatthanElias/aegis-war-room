@@ -1,14 +1,14 @@
 {
   "entry": "AGENTS.md",
-  "entry_hash": "32a670c736ddeea5122b3a16d7895388c557d6a738cbf4796a2b7f79fbbcb69e",
+  "entry_hash": "2a322e1b3615a29d5cb1af7048acfd1a72f13045ead5eb927a45f32ff529f81a",
   "entry_parts": {
     "brief": "22f137e4b64e5372fcc4b3e6387d1beb6d48e2be77c611c85f1bcb523cd8b300",
     "repositories": "2e91edcf5730adaab96a6415a86b22ff4b07ff21a96c124254dc3ac342610dc8",
-    "routes": "159e5f002a44b79f28e84f26a20d64ae12243ca1303154e1a1fbcd5a918e025a",
+    "routes": "01150464048395c58c492df783ffdc8a36dfaaf9f96ce5485da00690294d79e7",
     "checks": "1dfd5f806ccabadff69a81f71f93fbb4a1a314d522e10c549536e76d33f21f06",
     "team": "ef40e6bb8e82be00bb20cb892488f3bbc654d4dfd2792a554efdb3d1de04660d"
   },
-  "selection_hash": "ed1e502571e498308f6a30ca8ef338f1ec906a87d4bd08251e596372d24870c1",
+  "selection_hash": "ec8cd0ab5bf38b5779ddd4613543a661d8d7e363bf7208db90fa3c8bbc2ecc2a",
   "skills": [
     "workflow-setup",
     "generate-roadmap",

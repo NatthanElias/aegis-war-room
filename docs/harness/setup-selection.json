@@ -7,6 +7,8 @@
   "routes": [
     {"task": "Change design rationale", "start": "docs/architecture.md"},
     {"task": "Change schemas, pools, roles, or tool contracts", "start": "docs/architecture-reference.md"},
+    {"task": "Change alert intake or add a monitoring integration", "start": "docs/alert-webhook.md"},
+    {"task": "Review security controls and known gaps", "start": "docs/security.md"},
     {"task": "Look up protocol or Jev background", "start": "docs/research/"}
   ],
   "skills": ["workflow-setup", "generate-roadmap", "feature-workflow"],
