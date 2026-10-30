@@ -76,6 +76,26 @@ describe("grafana adapter", () => {
     expect(Object.keys(manyLabels?.labels ?? {})).toEqual(
       Array.from({ length: 32 }, (_, i) => `k${String(i + 1).padStart(2, "0")}`),
     );
+
+    // Why: independent limits catch both premature cuts and values left one character too long.
+    const boundaries = [
+      { summarySize: 3999, severitySize: 31, summary: "s".repeat(3999), severity: "v".repeat(31) },
+      { summarySize: 4000, severitySize: 32, summary: "s".repeat(4000), severity: "v".repeat(32) },
+      { summarySize: 4001, severitySize: 33, summary: "s".repeat(4000), severity: "v".repeat(32) },
+    ];
+    const bounded = grafanaAdapter.parse({
+      alerts: boundaries.map(({ summarySize, severitySize }) =>
+        item({
+          annotations: { summary: "s".repeat(summarySize) },
+          labels: { severity: "v".repeat(severitySize) },
+        }),
+      ),
+    });
+    expect(bounded).toHaveLength(3);
+    for (const [index, expected] of boundaries.entries()) {
+      expect(bounded[index]?.summary).toBe(expected.summary);
+      expect(bounded[index]?.severity).toBe(expected.severity);
+    }
   });
 
   test("prefers the summary and cuts long values", () => {
